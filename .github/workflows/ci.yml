@@ -1,0 +1,89 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  static:
+    name: Lint, types, unit & property tests
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm --filter @salon/engine test # unit + property-based, coverage thresholds
+      - run: pnpm --filter @salon/web test # contrast of every theme, helpers
+      - run: pnpm audit --prod --audit-level=high
+
+  api:
+    name: API integration (PostgreSQL 16)
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:16
+        env: { POSTGRES_PASSWORD: postgres }
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 3s --health-retries 20
+    env:
+      TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/salon_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @salon/api test # incl. 20 parallel bookings → exactly one succeeds
+
+  e2e:
+    name: E2E (Playwright, axe, visual, Lighthouse)
+    runs-on: ubuntu-24.04
+    needs: [static, api]
+    services:
+      postgres:
+        image: postgres:16
+        env: { POSTGRES_PASSWORD: postgres }
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 3s --health-retries 20
+    env:
+      CI: 'true'
+      E2E_DATABASE_URL: postgres://postgres:postgres@localhost:5432/salon_e2e
+      E2E_WEBKIT: '1' # iPhone project runs on real WebKit
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @salon/e2e exec playwright install --with-deps chromium webkit
+      # Visual baselines were recorded on Linux/Chromium; differences > 1 % fail the job.
+      - run: pnpm --filter @salon/e2e e2e
+      - name: Lighthouse (≥ 90 performance and accessibility)
+        working-directory: e2e
+        run: |
+          E2E_SKIP_BUILD=1 node start.mjs &
+          npx wait-on -t 120000 http-get://localhost:4310/api/health
+          node lighthouse.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: |
+            e2e/playwright-report
+            e2e/test-results
+            e2e/lighthouse-*.html
+          retention-days: 14

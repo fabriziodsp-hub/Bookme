@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="de"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Friseur – Termin buchen</title>
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);--bg:#f4f4f2;--card:#fff;--tx:#111;--mu:#6e6e73;--ac:#111;--act:#fff;--hi:#0f9d6e;--hit:#fff;--bd:#e4e4e0;--ew:#f3dfae;--gr:#e7e7e3;--ok:#0f9d6e}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--bg:#0b0b0c;--card:#17171a;--tx:#f4f4f5;--mu:#9a9aa1;--ac:#f4f4f5;--act:#0b0b0c;--hi:#34d399;--hit:#04281c;--bd:#2a2a2f;--ew:#6b5524;--gr:#26262b}}
+:root[data-theme="dark"]{color-scheme:dark;--bg:#0b0b0c;--card:#17171a;--tx:#f4f4f5;--mu:#9a9aa1;--ac:#f4f4f5;--act:#0b0b0c;--hi:#34d399;--hit:#04281c;--bd:#2a2a2f;--ew:#6b5524;--gr:#26262b}
+html{scroll-padding-top:env(safe-area-inset-top,0px);height:100%}
+*{box-sizing:border-box}
+body{margin:0;height:100%;background:var(--bg);color:var(--tx);font:15px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:760px;margin:0 auto;padding:10px 12px 0;height:100%;display:flex;flex-direction:column}
+.hdr{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px;margin-bottom:8px}
+h1{font-size:1.2rem;margin:0}h2{font-size:.95rem;margin:0 0 8px}
+#app{flex:1;min-height:0;display:flex;flex-direction:column}
+#top{flex:1;min-height:0;overflow:auto;padding-bottom:8px}
+#cal{flex:none;height:50dvh;display:flex;flex-direction:column;border-bottom:1px solid var(--bd);padding-bottom:6px;margin-bottom:8px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:20px;padding:14px;margin-bottom:10px}
+button{font:inherit;color:inherit;cursor:pointer}
+.chip{border:1px solid var(--bd);background:var(--card);border-radius:999px;padding:8px 14px;margin:0 6px 6px 0}
+.chip.on{background:var(--ac);color:var(--act);border-color:var(--ac)}
+.chip:disabled{opacity:.35;cursor:default}
+.hdr .chip{margin:0 0 0 4px;padding:6px 11px;font-size:.82rem}
+.row{display:flex;flex-wrap:wrap}
+.svc{display:flex;justify-content:space-between;gap:8px;width:100%;text-align:left;margin:0 0 6px;border-radius:14px;padding:12px 14px}
+.svc small{opacity:.8;text-align:right}
+.bar{display:flex;height:32px;border-radius:8px;overflow:hidden;margin:6px 0;font-size:.7rem}
+.bar div{display:flex;align-items:center;justify-content:center;background:var(--hi);color:var(--hit);white-space:nowrap;overflow:hidden;padding:0 3px;border-right:1px solid var(--card)}
+.bar .f{background:var(--ew);color:var(--tx);border:1px solid var(--card)}
+input,textarea{font:inherit;color:inherit;background:var(--bg);border:1px solid var(--bd);border-radius:10px;padding:9px;width:100%;margin-bottom:8px}
+.go{background:var(--ac);color:var(--act);border:0;border-radius:999px;padding:14px;width:100%;font-weight:600}
+.go:disabled{opacity:.4}
+.mu{color:var(--mu);font-size:.85rem}
+.ok{border-color:var(--ok)}
+.ch{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}.ch .chip{margin:0}
+.cs{flex:1;overflow:auto;position:relative;border:1px solid var(--bd);border-radius:10px;background:var(--card)}
+.cg{display:grid;grid-template-columns:36px repeat(7,minmax(0,1fr))}
+.hd{position:sticky;top:0;z-index:6;background:var(--card);text-align:center;font-size:.7rem;padding:3px 0;border-bottom:1px solid var(--bd);line-height:1.2}
+.gu{position:relative;font-size:.6rem;color:var(--mu)}.gu span{position:absolute;right:3px;transform:translateY(-50%)}
+.dc{position:relative;border-left:1px solid var(--bd);background-image:linear-gradient(var(--bd) 1px,transparent 1px);background-size:100% 78px}
+.dc>div,.dc>button{position:absolute;left:0;right:0}
+.cl{background:var(--gr);top:0;bottom:0;display:flex;align-items:center;justify-content:center;font-size:.6rem;color:var(--mu);writing-mode:vertical-rl}
+.pa{background:var(--gr);font-size:.6rem;color:var(--mu);text-align:center;padding-top:2px;z-index:1}
+.bk{background:var(--mu);opacity:.45;z-index:1}.bk.f{background:var(--ew);opacity:.8}
+.sl{left:2px!important;right:2px!important;border:1px solid var(--ac);background:var(--card);color:var(--ac);border-radius:5px;font-size:.6rem;padding:0;line-height:1;z-index:2}
+.sl:hover{background:var(--ac);color:var(--act)}
+.sel{background:var(--hi);color:var(--hit);z-index:4;pointer-events:none;font-size:.6rem;padding:1px 2px;overflow:hidden;border-radius:4px;box-shadow:0 0 0 2px var(--card)}
+.sel.f{background:var(--ew);color:var(--tx)}
+.tl{position:relative;border-left:2px solid var(--bd);margin-left:44px}
+.tl .h{position:absolute;left:-46px;font-size:.7rem;color:var(--mu)}
+.tl .b{position:absolute;left:6px;right:0;background:var(--ac);color:var(--act);border-radius:6px;padding:2px 6px;font-size:.78rem;overflow:hidden}
+.tl .b.f{background:var(--ew);color:var(--tx);border:1px solid var(--card)}
+.tl .p{position:absolute;left:0;right:0;background:var(--gr);font-size:.7rem;color:var(--mu);padding-left:6px}
+.del{border:1px solid var(--bd);background:none;border-radius:8px;padding:2px 8px;font-size:.8rem}
+.tl .b{background:var(--hi);color:var(--hit);padding:2px 38px 2px 8px;line-height:1.25;border:1px solid var(--card);white-space:nowrap;cursor:pointer}
+.tl .b.f{background:var(--ew);color:var(--tx);border:1px solid var(--card)}
+.tl .b.sel2{outline:3px solid var(--ac);z-index:5}
+.tl .b.bad{background:#dc2626;color:#fff;outline:2px solid #dc2626}
+.gr{position:absolute;right:0;top:0;width:36px;height:100%;max-height:34px;display:flex;align-items:center;justify-content:center;cursor:grab;touch-action:none;font-size:1.1rem}
+.rz{position:absolute;left:0;right:0;bottom:0;height:10px;cursor:ns-resize;touch-action:none;background:linear-gradient(transparent,rgba(0,0,0,.3))}
+.nav{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}.nav .chip{margin:0;min-height:44px;min-width:44px}
+.wk7{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}.wk7 .chip{margin:0;padding:6px 2px;border-radius:12px;font-size:.75rem;line-height:1.25;text-align:center}
+.chip.drop{background:var(--hi);color:var(--hit);border-color:var(--hi)}
+button:focus-visible,input:focus-visible,.b:focus-visible{outline:3px solid var(--ac);outline-offset:2px}
+.tl::after{content:'';position:absolute;inset:0;pointer-events:none;z-index:6;background-image:linear-gradient(rgba(128,128,128,.5) 1px,transparent 1px),linear-gradient(rgba(128,128,128,.28) 1px,transparent 1px),linear-gradient(rgba(128,128,128,.13) 1px,transparent 1px);background-size:100% 108px,100% 27px,100% 9px}
+.ov{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.55);display:flex;align-items:flex-end;justify-content:center}
+.md{background:var(--card);width:100%;max-width:440px;border-radius:24px 24px 0 0;padding:14px 14px calc(14px + env(safe-area-inset-bottom,0px))}
+.ms{display:flex;gap:6px;overflow-x:auto;margin-bottom:10px}.ms .chip{margin:0;flex:none}
+.mg{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center}
+.mg button{border:0;background:none;border-radius:50%;aspect-ratio:1;padding:0;position:relative}
+.mg button:disabled{opacity:.25;cursor:default}.mg .t{outline:2px solid var(--ac)}.mg .s{background:var(--ac);color:var(--act)}
+.mg i{position:absolute;bottom:3px;left:50%;width:5px;height:5px;margin-left:-2px;border-radius:50%;background:var(--hi)}
+</style></head><body><main>
+<div class="hdr"><h1>✂️ Termin buchen</h1><div><button class="chip" id="t1" onclick="V(1)">Kunden</button><button class="chip" id="t2" onclick="V(2)">Salon-Kalender</button><button class="chip" id="t3" onclick="SM()">Demo</button></div></div>
+<div id="app"></div><div id="pop"></div>
+</main>
+<script>
+// ===== Konfiguration =====
+const WK={1:1,2:1,3:1,4:1,5:1,6:1}; // Mo–Fr 8–17 mit Pause 12–13, Sa 8–14 ohne Pause, So geschlossen
+const OPEN=480,CLOSE=1020,BR=[720,780],STEP=15,EWZ=30,STYLE=30,STYLE_VER=45,P=1.3,PA=1.8,STEPA=5;
+const cl=d=>d.getDay()==6?840:CLOSE,pb=d=>d.getDay()==6?null:BR,MN=['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
+let pop=false,mo=0,sel=null,msg='',dg=null;
+const SVC=[
+{id:'cut',n:'Haarschnitt',g:'mw',t:'cut'},
+{id:'leg',n:'Waschen & Legen',g:'w',t:'fix',d:30},
+{id:'fa',n:'Schnitt & Farbe – Ansatz',g:'mw',t:'col',d:45},
+{id:'fl',n:'Schnitt & Farbe – Ansatz bis Spitzen',g:'mw',t:'col',d:60},
+{id:'st',n:'Strähnen',g:'w',t:'col',d:60},
+{id:'ba',n:'Balayage',g:'w',t:'bal'},
+{id:'dw',n:'Dauerwelle (Locken)',g:'w',t:'perm'}];
+const CUT={n:[20,'ohne Waschen'],w:[30,'mit Waschen'],wf:[45,'mit Waschen & Föhnen']};
+const VER='Glossing/Mattierung';
+// ===== Daten =====
+const $=s=>document.querySelector(s),pad=n=>String(n).padStart(2,'0');
+const hm=m=>pad(Math.floor(m/60))+':'+pad(m%60);
+const iso=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const WD=['So','Mo','Di','Mi','Do','Fr','Sa'];
+let B=[];try{B=JSON.parse(localStorage.getItem('bk2')||'[]')}catch(e){}
+const save=()=>{try{localStorage.setItem('bk2',JSON.stringify(B.filter(x=>!x.sim)))}catch(e){}};
+let sim=true;try{sim=localStorage.getItem('sim')!='0'}catch(e){}
+let st={g:'w',adult:null,s:null,wash:'wf',ver:'',date:null,time:null,fn:'',ln:'',tel:'',em:'',nt:'',done:null},view=1,wk=0,adm=iso(new Date());
+const cur=()=>SVC.find(x=>x.id==st.s);
+function blocks(){const s=cur();if(!s)return null;
+if(s.t=='cut')return[{d:CUT[st.wash][0],l:'Haarschnitt '+CUT[st.wash][1]}];
+if(s.t=='fix')return[{d:s.d,l:s.n}];
+if(s.t=='bal'){const a=[{d:240,l:'Balayage (inkl. Einwirkzeit & Styling)'}];a.only=[OPEN,BR[1]];return a}
+if(s.t=='perm')return[{d:30,l:'Haarschnitt'},{d:30,l:'Wickler eindrehen'},{d:15,l:'Einwirkzeit'},{d:15,l:'Ausspülen & Fixierung'},{d:30,l:'Styling'}];
+return[{d:s.d,l:s.n},{d:EWZ,l:'Einwirkzeit',f:1},{d:st.ver?STYLE_VER:STYLE,l:'Styling'+(st.ver?' & '+VER:'')}]}
+function layout(bl,start){let t=start;return bl.map(b=>{const o={s:t,e:t+b.d,l:b.l,f:!!b.f};t+=b.d;return o})}
+function fits(d,start,bl){if(!WK[d.getDay()])return false;const L=layout(bl,start),k=iso(d),n=new Date();
+if(start<OPEN||L[L.length-1].e>cl(d)||(bl.only&&!bl.only.includes(start)))return false;
+if(k<iso(n)||(k==iso(n)&&start<n.getHours()*60+n.getMinutes()+30))return false;
+const q=pb(d);if(q&&L.some(c=>c.s<q[1]&&q[0]<c.e))return false;
+return !B.some(x=>x.date==k&&x.bl.some(a=>!a.f&&L.some(c=>!c.f&&a.s<c.e&&c.s<a.e)))}
+function slots(d,bl){const r=[];for(let t=OPEN;t<CLOSE;t+=STEP)if(fits(d,t,bl))r.push(t);return r}
+function week(){const n=new Date(),m=n.getDate()-((n.getDay()+6)%7)+7*wk;return[0,1,2,3,4,5,6].map(i=>new Date(n.getFullYear(),n.getMonth(),m+i))}
+// ===== Aktionen =====
+const V=v=>{view=v;pop=false;R()},WKN=n=>{wk+=n;R()};
+function G(g){st.g=g;st.s=null;st.date=st.time=null;R()}
+function A(v){st.adult=v;if(!v&&st.s&&!['cut','fix'].includes(cur().t))st.s=null;st.date=st.time=null;R()}
+function S(id){st.s=id;st.date=st.time=null;R()}
+function W(w){st.wash=w;st.date=st.time=null;R()}
+function VE(v){st.ver=v;st.date=st.time=null;R()}
+function T(k,t){st.date=k;st.time=t;R();setTimeout(()=>{const e=$('#kf');e&&e.scrollIntoView({behavior:'smooth',block:'center'})},50)}
+function book(){const bl=blocks(),d=new Date(st.date+'T00:00');
+if(!fits(d,st.time,bl)){alert('Dieser Termin ist leider nicht mehr frei.');st.date=st.time=null;return R()}
+const s=cur(),L=layout(bl,st.time);
+B.push({id:Date.now(),date:st.date,bl:L,name:st.fn.trim()+' '+st.ln.trim(),tel:st.tel.trim(),em:st.em.trim(),nt:st.nt.trim(),adult:st.adult,svc:s.n+(s.t=='cut'?' ('+CUT[st.wash][1]+')':'')+(st.ver&&s.t=='col'?' + '+VER:''),g:st.g});
+save();st.done=B[B.length-1];st.s=null;st.date=st.time=null;st.fn=st.ln=st.tel=st.em=st.nt='';st.ver='';R()}
+function del(id){if(confirm('Termin löschen?')){B=B.filter(x=>x.id!=id);save();R()}}
+// ===== Darstellung =====
+function bar(L){return '<div class="bar">'+L.map(b=>'<div class="'+(b.f?'f':'')+'" style="flex:'+(b.e-b.s)+'" title="'+esc(b.l)+'">'+esc(b.l.split(' (')[0])+' · '+(b.e-b.s)+'′</div>').join('')+'</div>'}
+function R(){const t=$('#top'),c=$('#cal .cs'),ts=t?t.scrollTop:0,cs=c?c.scrollTop:0;
+$('#t1').classList.toggle('on',view==1);$('#t2').classList.toggle('on',view==2);$('#t3').classList.toggle('on',sim);$('#t3').textContent=sim?'Demo · '+pct()+' %':'Demo aus';
+$('#app').innerHTML=(view==1?'<div id="cal">'+cal()+'</div>':'')+'<div id="top">'+(view==1?cust():admin())+'</div>';
+$('#pop').innerHTML=pop?popup():(view==2&&sel?editor():'');
+$('#top').scrollTop=ts;const c2=$('#cal .cs');if(c2)c2.scrollTop=cs}
+function cust(){let h='';
+if(st.done){const r=st.done,dd=new Date(r.date+'T00:00');
+h+='<div class="card ok"><h2>✅ Termin bestätigt</h2><p style="margin:0 0 4px"><b>'+WD[dd.getDay()]+', '+dd.toLocaleDateString('de-DE')+'</b> ab <b>'+hm(r.bl[0].s)+' Uhr</b> · '+esc(r.name)+'<br>'+esc(r.svc)+'</p>'+bar(r.bl)
++'<p class="mu" style="margin:0 0 8px">Ende ca. '+hm(r.bl[r.bl.length-1].e)+' Uhr. Zum Verschieben oder Absagen melden wir uns unter '+esc([r.tel,r.em].filter(Boolean).join(' / '))+'.</p><button class="chip" onclick="st.done=null;R()">Weiteren Termin buchen</button></div>'}
+h+='<div class="card"><h2>1 · Für wen?</h2><div class="row"><button class="chip '+(st.g=='w'?'on':'')+'" onclick="G(\'w\')">Damen</button><button class="chip '+(st.g=='m'?'on':'')+'" onclick="G(\'m\')">Herren</button><span style="width:10px"></span><button class="chip '+(st.adult===true?'on':'')+'" onclick="A(true)">Volljährig (ab 18)</button><button class="chip '+(st.adult===false?'on':'')+'" onclick="A(false)">Minderjährig (unter 18)</button></div>'
++(st.adult===false?'<p class="mu" style="margin:0">Farb- und Dauerwellenbehandlungen sind für Minderjährige aus gesundheitlichen Gründen nicht verfügbar.</p>':'')+'</div>';
+if(st.adult===null)return h+'<p class="mu">Bitte zuerst das Alter angeben.</p>';
+h+='<div class="card"><h2>2 · Leistung</h2>'+SVC.filter(s=>s.g.includes(st.g)&&(st.adult||['cut','fix'].includes(s.t))).map(s=>{
+const sub={cut:'ab 20′',fix:'30′',col:s.d+'′ + Einwirkzeit + Styling',bal:'4 Std. (Vor- oder Nachmittag)',perm:'2 Std. am Stück'}[s.t];
+return '<button class="chip svc '+(st.s==s.id?'on':'')+'" onclick="S(\''+s.id+'\')"><span>'+s.n+'</span><small>'+sub+'</small></button>'}).join('')+'</div>';
+const bl=blocks();
+if(bl){const s=cur();
+if(s.t=='cut')h+='<div class="card"><h2>3 · Option</h2><div class="row">'+Object.keys(CUT).map(k=>'<button class="chip '+(st.wash==k?'on':'')+'" onclick="W(\''+k+'\')">'+CUT[k][1][0].toUpperCase()+CUT[k][1].slice(1)+' · '+CUT[k][0]+'′</button>').join('')+'</div></div>';
+if(s.t=='col')h+='<div class="card"><h2>3 · Veredelung</h2><div class="row"><button class="chip '+(!st.ver?'on':'')+'" onclick="VE(\'\')">Keine</button><button class="chip '+(st.ver?'on':'')+'" onclick="VE(VER)">'+VER+'</button></div><p class="mu" style="margin:0">Styling '+STYLE+'′, mit Veredelung '+STYLE_VER+'′</p></div>';
+const L=layout(bl,0);
+h+='<div class="card"><h2>Dauer: '+L[L.length-1].e+' Min.</h2>'+bar(L)+(bl.some(b=>b.f)?'<p class="mu" style="margin:0">Gelber Abschnitt = Einwirkzeit, in der andere Kunden bedient werden können.</p>':'')+(bl.only?'<p class="mu" style="margin:0">Nur 08:00 (Vormittag) oder 13:00 (Nachmittag, nicht samstags).</p>':'')+'</div>';
+if(st.time==null)h+='<p class="mu">4 · Tag und Uhrzeit im Kalender oben antippen ↑</p>';
+else{const dd=new Date(st.date+'T00:00'),E=layout(bl,st.time),col=['col','bal','perm'].includes(s.t);
+h+='<div class="card" id="kf"><h2>4 · Ihre Daten – '+WD[dd.getDay()]+', '+dd.toLocaleDateString('de-DE')+', '+hm(st.time)+'–'+hm(E[E.length-1].e)+' Uhr</h2>'
++'<input placeholder="Vorname" value="'+esc(st.fn)+'" oninput="st.fn=this.value;ck()"><input placeholder="Nachname" value="'+esc(st.ln)+'" oninput="st.ln=this.value;ck()">'
++'<input type="tel" placeholder="Telefon (oder E-Mail)" value="'+esc(st.tel)+'" oninput="st.tel=this.value;ck()"><input type="email" placeholder="E-Mail (oder Telefon)" value="'+esc(st.em)+'" oninput="st.em=this.value;ck()"><p class="mu" style="margin:-4px 0 8px">Mindestens eine Kontaktmöglichkeit, die andere ist optional. Für Verschiebung, Absage oder Rückfragen.</p>'
++(col?'<textarea rows="2" placeholder="Hinweise für die Zeitplanung: Haarlänge, aktuelle Farbe, Vorbehandlungen (optional)" oninput="st.nt=this.value">'+esc(st.nt)+'</textarea><p class="mu" style="margin:-4px 0 8px">Bitte Ausweis mitbringen: Bei Zweifeln am angegebenen Alter behalten wir uns eine Altersprüfung vor. Ohne Nachweis kann die Behandlung nicht durchgeführt werden.</p>':'')
++'<button class="go" id="go" onclick="book()" '+ok()+'>Verbindlich buchen</button></div>'}}
+return h}
+const okf=()=>st.fn.trim()&&st.ln.trim()&&(st.tel.trim()||st.em.trim())&&(!st.em.trim()||/\S+@\S+\.\S+/.test(st.em.trim())),ok=()=>okf()?'':'disabled';
+function ck(){$('#go').disabled=!okf()}
+function cal(){const bl=blocks(),ds=week(),f=d=>pad(d.getDate())+'.'+pad(d.getMonth()+1)+'.';
+let h='<div class="ch"><button class="chip" onclick="WKN(-1)" '+(wk<=0?'disabled':'')+'>‹</button><button class="chip" onclick="OP()">📅 '+f(ds[0])+' – '+f(ds[6])+(bl?'':' · Leistung wählen')+'</button><button class="chip" onclick="WKN(1)" '+(wk>=52?'disabled':'')+'>›</button></div><div class="cs"><div class="cg"><div class="hd"></div>'
++ds.map(d=>'<div class="hd">'+WD[d.getDay()]+'<br>'+f(d)+'</div>').join('')
++'<div class="gu" style="height:'+(CLOSE-OPEN)*P+'px">'+[8,9,10,11,12,13,14,15,16].map(x=>'<span style="top:'+(x*60-OPEN)*P+'px">'+x+':00</span>').join('')+'</div>';
+ds.forEach(d=>{const k=iso(d);h+='<div class="dc" style="height:'+(CLOSE-OPEN)*P+'px">';
+if(!WK[d.getDay()])h+='<div class="cl">geschlossen</div>';
+else{if(pb(d))h+='<div class="pa" style="top:'+(BR[0]-OPEN)*P+'px;height:'+(BR[1]-BR[0])*P+'px">Pause</div>';if(d.getDay()==6)h+='<div class="cl" style="top:'+(840-OPEN)*P+'px">geschlossen</div>';
+B.filter(x=>x.date==k).forEach(x=>x.bl.forEach(b=>{h+='<div class="bk '+(b.f?'f':'')+'" style="top:'+(b.s-OPEN)*P+'px;height:'+(b.e-b.s)*P+'px"></div>'}));
+if(bl)slots(d,bl).forEach(t=>{h+='<button class="sl" style="top:'+(t-OPEN)*P+'px;height:'+(STEP*P-2)+'px" onclick="T(\''+k+'\','+t+')">'+hm(t)+'</button>'});
+if(bl&&st.date==k&&st.time!=null)layout(bl,st.time).forEach(b=>{h+='<div class="sel '+(b.f?'f':'')+'" style="top:'+(b.s-OPEN)*P+'px;height:'+(b.e-b.s)*P+'px">'+(b.s==st.time?hm(b.s):'')+'</div>'})}
+h+='</div>'});
+return h+'</div></div>'}
+function ad(k,n){const d=new Date(k+'T00:00');d.setDate(d.getDate()+n);return iso(d)}
+function nd(k,dir){let x=ad(k,dir);while(!WK[new Date(x+'T00:00').getDay()])x=ad(x,dir);return x}
+function AD(k){adm=k;sel=null;R()}
+function SE(id){sel=sel==id?null:id;R()}
+function shift(r,dm){return r.bl.map(b=>({s:b.s+dm,e:b.e+dm,l:b.l,f:b.f}))}
+function resz(r,i,dm){if(r.bl[i].e-r.bl[i].s+dm<STEPA)return null;let t=r.bl[0].s;return r.bl.map((b,j)=>{const d=b.e-b.s+(j==i?dm:0),o={s:t,e:t+d,l:b.l,f:b.f};t+=d;return o})}
+function chk(k,L,id){const d=new Date(k+'T00:00');if(!WK[d.getDay()]||L[0].s<OPEN||L[L.length-1].e>cl(d))return false;
+const q=pb(d);if(q&&L.some(c=>c.s<q[1]&&q[0]<c.e))return false;
+return !B.some(x=>x.id!=id&&x.date==k&&x.bl.some(a=>!a.f&&L.some(c=>!c.f&&a.s<c.e&&c.s<a.e)))}
+function flash(m){msg=m;clearTimeout(flash.t);flash.t=setTimeout(()=>{msg='';R()},4000)}
+function put(id,k,L){const r=B.find(x=>x.id==id);if(!L||!chk(k,L,id)){flash('Nicht möglich: Zeit belegt, in der Pause oder außerhalb der Öffnungszeiten.');return false}r.date=k;r.bl=L;save();return true}
+function MV(id,dm){const r=B.find(x=>x.id==id);put(id,r.date,shift(r,dm));R()}
+function RZ(id,i,dm){const r=B.find(x=>x.id==id);put(id,r.date,resz(r,i,dm));R()}
+function ES(){const r=B.find(x=>x.id==sel),d=$('#ed').value,t=$('#et').value;if(!d||!t)return;
+if(put(sel,d,shift(r,(+t.slice(0,2)*60+ +t.slice(3,5))-r.bl[0].s))&&d!=adm)adm=d;R()}
+function BK(e,id){if(e.key=='Enter'||e.key==' '){e.preventDefault();SE(id)}else if(e.key=='ArrowUp'||e.key=='ArrowDown'){e.preventDefault();MV(id,(e.key=='ArrowUp'?-1:1)*(e.shiftKey?STEP:STEPA));setTimeout(()=>{const x=document.querySelector('.b[data-id="'+id+'"]');x&&x.focus()},0)}}
+function DG(e,id,i,mode){e.preventDefault();e.stopPropagation();const r=B.find(x=>x.id==id);dg={id,i,mode,y:e.clientY,dm:0,day:r.date,r,els:[...document.querySelectorAll('.b[data-id="'+id+'"]')]}}
+function DM(e){if(!dg)return;const dm=Math.round((e.clientY-dg.y)/PA/STEPA)*STEPA;dg.dm=dm;
+if(dg.mode=='m'){const el=document.elementFromPoint(e.clientX,e.clientY),c=el&&el.closest?el.closest('[data-day]'):null;dg.day=c?c.dataset.day:dg.r.date}
+const L=dg.mode=='m'?shift(dg.r,dm):resz(dg.r,dg.i,dm),bad=!L||!chk(dg.day,L,dg.id);
+dg.els.forEach((el,j)=>{if(dg.mode=='m')el.style.transform='translateY('+dm*PA+'px)';else{if(j>dg.i)el.style.transform='translateY('+dm*PA+'px)';if(j==dg.i&&L)el.style.height=(L[j].e-L[j].s)*PA+'px'}el.classList.toggle('bad',bad)});
+document.querySelectorAll('[data-day]').forEach(c=>c.classList.toggle('drop',dg.mode=='m'&&c.dataset.day==dg.day&&dg.day!=dg.r.date));
+const t=document.querySelector('[role=status]');if(t&&L)t.textContent=hm(L[0].s)+'–'+hm(L[L.length-1].e)+' Uhr'+(dg.day!=dg.r.date?' · '+new Date(dg.day+'T00:00').toLocaleDateString('de-DE'):'')+(bad?' · nicht möglich':'')}
+function DU(){if(!dg)return;const g=dg;dg=null;
+if(g.dm||g.day!=g.r.date){const old=g.r.date,L=g.mode=='m'?shift(g.r,g.dm):resz(g.r,g.i,g.dm);if(put(g.id,g.day,L)&&g.day!=old)flash('Termin verschoben auf '+new Date(g.day+'T00:00').toLocaleDateString('de-DE'))}R()}
+function editor(){const r=B.find(x=>x.id==sel);if(!r){sel=null;return ''}const e=r.bl[r.bl.length-1].e;
+return '<div class="ov" style="background:none;pointer-events:none"><div class="md" style="pointer-events:auto" role="dialog" aria-label="Termin bearbeiten"><div class="ch"><b>'+esc(r.name)+'</b><button class="chip" style="margin:0" aria-label="Schließen" onclick="SE('+r.id+')">✕</button></div><p class="mu" style="margin:0 0 8px">'+esc(r.svc)+' · '+hm(r.bl[0].s)+'–'+hm(e)+' ('+(e-r.bl[0].s)+' Min.)</p>'
++'<div class="row" style="gap:6px;margin-bottom:6px"><input id="ed" type="date" value="'+r.date+'" style="flex:1;margin:0"><input id="et" type="time" step="300" value="'+hm(r.bl[0].s)+'" style="flex:1;margin:0"><button class="chip" style="margin:0" onclick="ES()">Übernehmen</button></div>'
++'<div class="row" style="align-items:center;gap:4px;margin-bottom:6px"><span style="margin-right:4px">Start</span>'+[-15,-5,5,15].map(m=>'<button class="chip" style="margin:0" aria-label="Termin '+Math.abs(m)+' Minuten '+(m<0?'früher':'später')+'" onclick="MV('+r.id+','+m+')">'+(m>0?'+':'−')+Math.abs(m)+'</button>').join('')+'</div>'
++r.bl.map((b,i)=>'<div class="row" style="align-items:center;justify-content:space-between;margin-bottom:4px"><span>'+esc(b.l)+' · <b>'+(b.e-b.s)+'′</b></span><span>'+[-15,-5,5,15].map(m=>'<button class="chip" aria-label="'+esc(b.l)+' '+Math.abs(m)+' Minuten '+(m<0?'kürzer':'länger')+'" style="margin:0 0 0 4px;padding:8px 10px" onclick="RZ('+r.id+','+i+','+m+')">'+(m>0?'+':'−')+Math.abs(m)+'</button>').join('')+'</span></div>').join('')
++'<button class="chip" style="margin-top:6px" onclick="del('+r.id+')">Termin löschen</button></div></div>'}
+function admin(){const dd=new Date(adm+'T00:00'),dw=dd.getDay(),l=B.filter(x=>x.date==adm).sort((a,b)=>a.bl[0].s-b.bl[0].s),mon=ad(adm,-((dw+6)%7));
+let h='<div class="card"><div class="nav"><button class="chip" aria-label="Eine Woche zurück" onclick="AD(ad(adm,-7))">«</button><button class="chip" aria-label="Vorheriger Öffnungstag" onclick="AD(nd(adm,-1))">‹</button><button class="chip" onclick="AD(iso(new Date()))">Heute</button><button class="chip" aria-label="Nächster Öffnungstag" onclick="AD(nd(adm,1))">›</button><button class="chip" aria-label="Eine Woche vor" onclick="AD(ad(adm,7))">»</button><button class="chip" style="flex:1" aria-label="Datum im Kalender wählen" onclick="OP()">📅 '+dd.toLocaleDateString('de-DE',{weekday:'long',day:'numeric',month:'long',year:'numeric'})+'</button></div><div class="wk7">'
++[0,1,2,3,4,5,6].map(i=>{const k=ad(mon,i),d=new Date(k+'T00:00'),o=WK[d.getDay()],c=B.filter(x=>x.date==k).length;return '<button class="chip '+(k==adm?'on':'')+'" data-day="'+k+'" '+(o?'':'disabled')+' aria-label="'+d.toLocaleDateString('de-DE',{weekday:'long',day:'numeric',month:'long'})+', '+c+' Termine" onclick="AD(&quot;'+k+'&quot;)">'+WD[d.getDay()]+'<br><b>'+d.getDate()+'</b><br>'+(o?c:'–')+'</button>'}).join('')+'</div>'
++'<p class="mu" style="margin:8px 0 0" role="status" aria-live="polite">'+(msg||'Termin antippen zum Bearbeiten · ⠿ ziehen zum Verschieben (auch auf einen Tag oben) · unteren Rand ziehen für die Dauer (5-Min.-Raster).')+'</p></div>';
+if(!WK[dw])h+='<div class="card"><p class="mu" style="margin:0">Geschlossen.</p></div>';
+else{const q=pb(dd);h+='<div class="card" style="padding-right:8px"><div class="tl" style="height:'+(cl(dd)-OPEN)*PA+'px">'+(q?'<div class="p" style="top:'+(q[0]-OPEN)*PA+'px;height:'+(q[1]-q[0])*PA+'px">Pause</div>':'');
+for(let t=OPEN;t<cl(dd);t+=60)h+='<span class="h" style="top:'+(t-OPEN)*PA+'px">'+hm(t)+'</span>';
+l.forEach(k=>k.bl.forEach((b,i)=>{h+='<div class="b '+(b.f?'f ':'')+(sel==k.id?'sel2':'')+'" tabindex="0" role="button" aria-label="'+esc(k.name)+', '+esc(b.l)+', '+hm(b.s)+' bis '+hm(b.e)+'" data-id="'+k.id+'" data-i="'+i+'" style="top:'+(b.s-OPEN)*PA+'px;height:'+(b.e-b.s)*PA+'px" onclick="SE('+k.id+')" onkeydown="BK(event,'+k.id+')">'+(i==0?'<b>'+hm(k.bl[0].s)+'–'+hm(k.bl[k.bl.length-1].e)+' '+esc(k.name)+'</b> · ':'')+esc(b.l)+' ('+(b.e-b.s)+'′)'+(i==k.bl.length-1?' · Ende '+hm(b.e):'')+'<span class="gr" title="Ziehen zum Verschieben" aria-hidden="true" onpointerdown="DG(event,'+k.id+','+i+',&quot;m&quot;)" onclick="event.stopPropagation()">⠿</span><span class="rz" title="Ziehen für die Dauer" aria-hidden="true" onpointerdown="DG(event,'+k.id+','+i+',&quot;r&quot;)" onclick="event.stopPropagation()"></span></div>'}));
+h+='</div></div>'}
+h+='<div class="card"><h2>Termine ('+l.length+')</h2>'+(l.length?l.map(k=>'<p style="margin:0 0 10px"><b>'+hm(k.bl[0].s)+'–'+hm(k.bl[k.bl.length-1].e)+'</b> '+esc(k.name)+(k.adult?'':' (minderjährig)')+' · '+esc([k.tel,k.em].filter(Boolean).join(' / '))+'<br><span class="mu">'+esc(k.svc)+' ('+(k.g=='w'?'Damen':'Herren')+')'+(k.nt?' – Hinweis: '+esc(k.nt):'')+'</span> <button class="del" onclick="SE('+k.id+')">Bearbeiten</button> <button class="del" onclick="del('+k.id+')">Löschen</button></p>').join(''):'<span class="mu">Keine Termine an diesem Tag.</span>')+'</div>';
+return h+(sel?'<div style="height:360px"></div>':'')}
+function OP(){const n=new Date(),m=view==2?new Date(adm+'T00:00'):week()[0];mo=Math.max(view==2?-12:0,Math.min(12,(m.getFullYear()-n.getFullYear())*12+m.getMonth()-n.getMonth()));pop=true;R()}
+function CL(){pop=false;R()}
+function MO(n){mo=Math.max(view==2?-12:0,Math.min(12,n));R()}
+function TD(){wk=0;pop=false;R()}
+function DP(k){if(view==2){pop=false;return AD(k)}const n=new Date(),a=new Date(n.getFullYear(),n.getMonth(),n.getDate()-((n.getDay()+6)%7)),d=new Date(k+'T00:00'),b=new Date(d.getFullYear(),d.getMonth(),d.getDate()-((d.getDay()+6)%7));wk=Math.round((b-a)/6048e5);pop=false;R()}
+function NX(){const bl=blocks();if(!bl)return;const n=new Date();for(let i=0;i<365;i++){const d=new Date(n.getFullYear(),n.getMonth(),n.getDate()+i);if(slots(d,bl).length)return DP(iso(d))}alert('Keine freien Termine gefunden.')}
+function popup(){const n=new Date(),b=new Date(n.getFullYear(),n.getMonth()+mo,1),bl=view==1?blocks():null,today=iso(n),mx=iso(new Date(n.getFullYear(),n.getMonth(),n.getDate()+364));
+let h='<div class="ov" onclick="if(event.target==this)CL()"><div class="md"><div class="ch"><button class="chip" onclick="MO(mo-1)" '+(mo<=(view==2?-12:0)?'disabled':'')+'>‹</button><b>'+b.toLocaleDateString('de-DE',{month:'long',year:'numeric'})+'</b><button class="chip" onclick="MO(mo+1)" '+(mo>=12?'disabled':'')+'>›</button></div><div class="ms">'
++[...Array(13).keys()].map(i=>{const m=new Date(n.getFullYear(),n.getMonth()+i,1);return '<button class="chip '+(i==mo?'on':'')+'" onclick="MO('+i+')">'+MN[m.getMonth()]+(m.getMonth()==0||i==0?' '+String(m.getFullYear()).slice(2):'')+'</button>'}).join('')+'</div><div class="mg">'+['Mo','Di','Mi','Do','Fr','Sa','So'].map(x=>'<span class="mu">'+x+'</span>').join('');
+for(let i=0;i<(b.getDay()+6)%7;i++)h+='<span></span>';
+const dm=new Date(b.getFullYear(),b.getMonth()+1,0).getDate();
+for(let i=1;i<=dm;i++){const d=new Date(b.getFullYear(),b.getMonth(),i),k=iso(d),has=!!bl&&slots(d,bl).length>0,off=(view==1&&(k<today||k>mx))||!WK[d.getDay()]||(!!bl&&!has);
+h+='<button class="'+(k==today?'t ':'')+(k==(view==1?st.date:adm)?'s':'')+'" '+(off?'disabled':'')+' onclick="DP(&quot;'+k+'&quot;)">'+i+(has?'<i></i>':'')+'</button>'}
+return h+'</div><div class="row" style="margin-top:12px"><button class="chip" onclick="TD()">Heute</button>'+(bl?'<button class="chip" onclick="NX()">Nächster freier Termin</button>':'')+'<button class="chip" onclick="CL()" style="margin-left:auto">Schließen</button></div></div></div>'}
+function init(){B=B.filter(x=>!x.sim);if(sim)gen()}
+function SM(){sim=!sim;try{localStorage.setItem('sim',sim?'1':'0')}catch(e){}init();st.date=st.time=null;R()}
+function pct(){const n=new Date(),a=iso(n),end=new Date(n.getFullYear(),n.getMonth()+3,n.getDate()),z=iso(end);let cap=0,b=0;for(const d=new Date(n.getFullYear(),n.getMonth(),n.getDate());d<end;d.setDate(d.getDate()+1))if(WK[d.getDay()])cap+=cl(d)-OPEN-(pb(d)?60:0);B.forEach(x=>{if(x.date>=a&&x.date<z)x.bl.forEach(y=>{if(!y.f)b+=y.e-y.s})});return Math.round(100*b/cap)}
+function gen(){const keep=[st.s,st.wash,st.ver],n=new Date(),end=new Date(n.getFullYear(),n.getMonth()+3,n.getDate());
+let seed=n.getFullYear()*10000+(n.getMonth()+1)*100+n.getDate();
+const rn=()=>{seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296},pick=a=>a[Math.floor(rn()*a.length)];
+const FN=['Anna','Luca','Marta','Jonas','Sofia','Elias','Lena','Paul','Mia','Noah','Giulia','Felix','Emma','Leon','Clara','Tim','Laura','Ben'],LN=['Müller','Schmidt','Rossi','Weber','Fischer','Becker','Hoffmann','Schulz','Bianchi','Wagner','Koch','Richter','Klein','Wolf','Neumann','Russo'],WT={cut:5,leg:1,fa:2,fl:1.5,st:1,ba:.5,dw:.4};
+for(const d=new Date(n.getFullYear(),n.getMonth(),n.getDate());d<end;d.setDate(d.getDate()+1)){
+if(!WK[d.getDay()])continue;
+const k=iso(d),cap=cl(d)-OPEN-(pb(d)?60:0),sum=x=>x.bl.reduce((a,b)=>a+(b.f?0:b.e-b.s),0);
+let busy=B.filter(x=>x.date==k).reduce((a,x)=>a+sum(x),0);
+for(let i=0;i<400&&busy<cap*.7;i++){
+const g=rn()<.45?'m':'w',pool=SVC.filter(s=>s.g.includes(g)&&(i<150||['cut','leg'].includes(s.t)));
+let r=rn()*pool.reduce((a,s)=>a+WT[s.id],0),s=pool[0];for(const c of pool){r-=WT[c.id];if(r<=0){s=c;break}}
+st.s=s.id;st.wash=pick(['n','w','wf','wf']);st.ver=s.t=='col'&&rn()<.3?VER:'';
+const bl=blocks(),t=OPEN+STEP*Math.floor(rn()*((cl(d)-OPEN)/STEP));
+if(!fits(d,t,bl))continue;
+const L=layout(bl,t),z=L.reduce((a,b)=>a+(b.f?0:b.e-b.s),0);
+if(busy+z>cap*.72)continue;
+B.push({id:9e8+B.length,sim:1,date:k,bl:L,name:pick(FN)+' '+pick(LN),tel:'+49 15'+Math.floor(1e8+rn()*9e8),em:'',nt:'',adult:true,g:g,svc:s.n+(s.t=='cut'?' ('+CUT[st.wash][1]+')':'')+(st.ver?' + '+VER:'')});busy+=z}}
+st.s=keep[0];st.wash=keep[1];st.ver=keep[2]}
+document.addEventListener('pointermove',DM);document.addEventListener('pointerup',DU);document.addEventListener('pointercancel',()=>{dg=null;R()});init();R();
+</script></body></html>

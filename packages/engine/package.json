@@ -1,0 +1,23 @@
+{
+  "name": "@salon/engine",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Pure scheduling engine: service blocks, rules, slots. No UI, no DB.",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --coverage",
+    "build": "tsc --noEmit"
+  },
+  "dependencies": {
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "temporal-polyfill": "^1.0.6"
+  }
+}

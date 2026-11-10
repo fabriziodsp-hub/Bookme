@@ -1,0 +1,12 @@
+{
+  "name": "@salon/config",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The salon's business configuration (opening hours, services). Edit salon.config.ts, not code.",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": { "typecheck": "tsc --noEmit", "build": "tsc --noEmit" },
+  "dependencies": { "@salon/engine": "workspace:*" }
+}

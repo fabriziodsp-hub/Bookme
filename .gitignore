@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.env
+*.local
+coverage/
+e2e/lighthouse-*.html
+e2e/test-results/
+e2e/playwright-report/

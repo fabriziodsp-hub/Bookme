@@ -1,0 +1,43 @@
+# Local demo in one command:  docker compose up --build
+# Then open http://localhost:3000/salon-beispiel  (booking: /salon-beispiel/buchen, team: /salon-beispiel/team, platform: /admin)
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: salon
+    volumes: [db:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 3s
+      retries: 20
+
+  # One-off: create the schema and the deterministic demo data (skips salons that already exist).
+  seed:
+    build: .
+    command: ["pnpm", "--filter", "@salon/api", "seed"]
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgres://postgres:postgres@db:5432/salon
+      SEED_PASSWORD: demo-passwort-2026
+    depends_on:
+      db: { condition: service_healthy }
+
+  app:
+    build: .
+    ports: ["3000:3000"]
+    environment:
+      # Demo settings – for production see README "Deployment".
+      NODE_ENV: development
+      DATABASE_URL: postgres://postgres:postgres@db:5432/salon
+      PUBLIC_BASE_URL: http://localhost:3000
+      APP_SECRET: ${APP_SECRET:-local-demo-secret-change-me-local-demo-secret}
+      STATIC_DIR: /app/apps/web/dist
+      MAIL_MODE: dev
+      DEV_ROUTES: "true"
+    depends_on:
+      db: { condition: service_healthy }
+      seed: { condition: service_completed_successfully }
+
+volumes:
+  db:

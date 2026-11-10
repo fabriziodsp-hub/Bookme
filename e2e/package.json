@@ -1,0 +1,19 @@
+{
+  "name": "@salon/e2e",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "e2e": "playwright test",
+    "test:update": "playwright test --update-snapshots",
+    "lighthouse": "node lighthouse.mjs"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.14.0",
+    "@playwright/test": "1.63.0",
+    "@types/pg": "^8.23.1",
+    "chrome-launcher": "^1.2.2",
+    "lighthouse": "^13.6.0",
+    "pg": "^8.23.1"
+  }
+}
