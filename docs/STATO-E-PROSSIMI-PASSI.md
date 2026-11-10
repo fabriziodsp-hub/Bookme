@@ -37,7 +37,7 @@ In totale **233 test automatici verdi** (motore 94, web 27, API 46, e2e 66 + 6 s
 ## Novità del 10 novembre 2026
 
 - GitHub riallineato allo zip completo, CI verde (lint, tipi, test motore/web/API, e2e, Lighthouse).
-- Docker verificato sul PC Windows; il progetto ora si trova fuori da OneDrive (`%USERPROFILE%\Claude GitHub\Webapp\salon-booking`), collegato a GitHub.
+- Docker verificato sul PC Windows; il progetto ora si trova fuori da OneDrive (`%USERPROFILE%\Claude GitHub\Bookme`), collegato a GitHub.
 - `Dockerfile`: `pnpm` resta dentro l'immagine, l'app si avvia anche offline.
 - **Leistungen & Dauern** (D-048): titolare e gestore della piattaforma modificano nome, Damen/Herren, "nur ab 18", passaggi e durate. Gli appuntamenti già presi non cambiano; un servizio con appuntamenti si può solo nascondere. Le durate mostrate nella prenotazione ora si calcolano dai dati.
 - **Login con nome utente** (D-049): nello stesso campo si può scrivere l'e-mail oppure il nome utente (es. `maria`). Il nome utente vale per il salone della pagina di login; l'e-mail resta obbligatoria per chi accede.
@@ -108,7 +108,7 @@ Versione senza terminale per GitHub: file `salon-booking-per-github.zip` (contie
 4. Publish repository → spuntare "Keep this code private" → Publish.
 5. Su github.com → repository → scheda **Actions**: aspettare la spunta verde (15–20 min).
 
-Docker: installare Docker Desktop, avviarlo, aprire il Terminale nella cartella `salon-booking` ed eseguire `docker compose up --build`; poi aprire `http://localhost:3000/salon-beispiel`. Per fermare: Ctrl+C, poi `docker compose down`.
+Docker: installare Docker Desktop, avviarlo, aprire il Terminale nella cartella del progetto (`%USERPROFILE%\Claude GitHub\Bookme`) ed eseguire `docker compose up --build`; poi aprire `http://localhost:3000/salon-beispiel`. Per fermare: Ctrl+C, poi `docker compose down`.
 
 ## Come riprendere il lavoro in una nuova sessione
 

@@ -18,7 +18,7 @@ Context for a new Claude Code session. The project was built in a Cowork chat (O
 ## Resolved on 2026-11-10
 1. GitHub `main` now matches the reference zip (stray root files removed, missing files added; PR #1). CI is green. The original 25-commit history exists only in `salon-booking-completo.zip`; GitHub has the upload history plus one sync commit.
 2. `docker compose up --build` verified (cloud sandbox and the owner's Windows PC with Docker Desktop). The Dockerfile keeps pnpm in the image (`COREPACK_HOME`), so the app starts without internet access.
-3. The owner's working copy is `%USERPROFILE%\Claude GitHub\Webapp\salon-booking` (a clone of GitHub, outside OneDrive). Old copies in OneDrive contain nothing that is not on GitHub.
+3. The owner's working copy is `%USERPROFILE%\Claude GitHub\Bookme` (a clone of GitHub, outside OneDrive). Old copies in OneDrive contain nothing that is not on GitHub.
 4. Upload via the GitHub web UI is no longer needed: work on a branch, open a PR, merge after green CI.
 
 ## Open decisions (ask the owner, do not decide alone)
