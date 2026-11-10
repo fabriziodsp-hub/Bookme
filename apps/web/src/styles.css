@@ -241,3 +241,25 @@ textarea { min-height: 80px; resize: vertical; }
   .h-sticky { display: block; position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; padding: 10px var(--gutter) calc(10px + env(safe-area-inset-bottom)); background: var(--bg); border-top: 1px solid var(--border); }
   .h-hero { padding-top: 40px; }
 }
+
+/* ---------- Hover glow on pressable controls (D-053) ----------
+ * The edge lights up in the accent and fades towards the inside, so a pointer user sees
+ * that the control can be pressed. Filled controls glow in a light token instead of the
+ * accent (accent on accent is invisible). Only for real pointers (no sticky hover on touch);
+ * disabled controls stay flat. Motion is the existing --t transition (0 with reduced motion). */
+:root { --glow-fill: var(--text); }
+:root[data-scheme='light'] { --glow-fill: var(--surface); }
+:root[data-flavor='contrast'] { --glow-fill: var(--ac-ink); }
+:is(.btn, .chip, .svc, .seg button, .tab, .strip button, .mday, .cal-slot) { --glow: var(--ac); --ring-out: 0 0 0 0 transparent; }
+:is(.btn.primary, .btn.danger, .chip[aria-pressed='true'], .chip[aria-checked='true'], .chip.on, .svc[aria-checked='true'], .strip button[aria-current='date'], .mday.sel) { --glow: var(--glow-fill); --glow-border: transparent; } /* border shows the fill */
+.cal-slot { --ring-out: 0 0 0 1px var(--surface); }
+.seg button[aria-pressed='true'] { --ring-out: var(--shadow); }
+@media (hover: hover) and (pointer: fine) {
+  :is(.btn, .chip, .svc, .seg button, .tab, .strip button, .mday, .cal-slot):not(:disabled) {
+    transition: background var(--t), color var(--t), border-color var(--t), transform var(--t) var(--ease), box-shadow var(--t);
+  }
+  :is(.btn, .chip, .svc, .seg button, .tab, .strip button, .mday, .cal-slot):not(:disabled):not([aria-disabled='true']):hover {
+    border-color: var(--glow-border, var(--glow));
+    box-shadow: var(--ring-out), inset 0 0 0 1px var(--glow), inset 0 0 14px 2px color-mix(in srgb, var(--glow) 45%, transparent);
+  }
+}
