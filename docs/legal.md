@@ -25,7 +25,7 @@
 
 Legal bases: Art. 6(1)(b) for bookings and transactional messages; Art. 6(1)(a) for the birthday offer (consent, opt-out link in every offer e-mail, § 7 UWG); Art. 6(1)(f) for abuse protection.
 
-No trackers, no third-party scripts, fonts or CDNs. The only browser storage on the client side holds the visitor's own view settings and the "splash seen" flag (§ 25 Abs. 2 Nr. 2 TDDDG – requested functionality). Staff use a strictly necessary session cookie.
+No trackers, no third-party scripts, fonts or CDNs. The only browser storage on the client side holds the visitor's own view settings and the "splash seen" flag (§ 25 Abs. 2 Nr. 2 TDDDG – requested functionality). Staff use a strictly necessary session cookie. Staff devices also keep the calendar view ("Ganzer Tag"/"Klassisch", D-060) and, after "Profil wechseln", the colleague's user name until the login page has shown it (sessionStorage, D-055) – both requested functionality, nothing sent anywhere.
 
 Rights: export (Art. 15) and anonymisation (Art. 17) are available to the salon owner in the client search.
 
@@ -78,3 +78,11 @@ According to IHK Berlin, micro-enterprises (< 10 employees and ≤ 2 M € turno
 ## Impressum
 
 Required fields (§ 5 DDG) are prepared from the salon profile; for Friseure additionally the chamber (Handwerkskammer) and the Handwerksrolle entry. The operator's details belong in a separate operator Impressum.
+
+## Review 2026-11-10 (security & legal, not legal advice)
+
+- **Fixed:** behind a proxy (`TRUST_PROXY=true`, e.g. the demo tunnel) the client IP for rate limits was taken from the *first* `X-Forwarded-For` entry, which the client can forge. Now the right-most entry (added by our proxy) is used. Login lockout was not affected (it counts per account).
+- **Fixed:** the dev mailbox (`/api/dev/mailbox`, demo only) was readable without login and showed all salons' e-mails, including clients' personal management links. Now staff only, own salon only.
+- **Online demo (tunnel):** traffic passes through Cloudflare (US company, EU–US Data Privacy Framework). Fine for a demo with invented data; not for real client data. The demo passwords are public – anyone with the link can change the demo data (reset: `docker compose down -v`, then start again).
+- **Still open before going live:** Impressum and Datenschutz placeholders (`[Plattformbetreiber]`, `[Anbieter ergänzen]`, Verbraucherstreitbeilegung `[prüfen]`), EU hosting and e-mail provider with AVV, lawyer review of the fee clause (§ 309 Nr. 5 BGB) and the allergy consent form, retention A-07, BFSG question for the platform operator.
+- **Correct as it is:** no link to the EU online dispute resolution platform (the platform was shut down in July 2025, so the old link duty no longer applies); no cookie banner needed (no tracking, only necessary storage); birthday offers only with recorded consent and an unsubscribe link.

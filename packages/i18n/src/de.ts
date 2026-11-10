@@ -280,6 +280,7 @@ export const de = {
     },
     set: {
       all: 'Alle Einstellungen',
+      legal: 'Rechtliches',
       konto: 'Konto',
       kontoHint: 'Angemeldet als …, Profil wechseln, Abmelden',
       ansicht: 'Ansicht',
@@ -317,6 +318,14 @@ export const de = {
       confirm: 'Endgültig löschen',
       done: 'Profil von {name} gelöscht.',
       doneReassign: 'Profil von {name} gelöscht. {n} kommende Termine warten jetzt unter „Anfragen“ auf eine neue Person.',
+    },
+    cal: {
+      zoom: 'Zoom',
+      fit: 'Ganzer Tag',
+      classic: 'Klassisch',
+      full: 'Vollbild',
+      exitFull: 'Vollbild beenden',
+      teamNote: 'Notiz für das Team',
     },
     reassign: {
       hint: 'Die Person dieses Termins wurde gelöscht. Der Termin ist nicht mehr bestätigt: bitte einer Kollegin oder einem Kollegen geben und dann annehmen – oder ablehnen.',

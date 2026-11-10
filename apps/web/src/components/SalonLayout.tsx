@@ -42,11 +42,12 @@ export function SalonLayout() {
           <ViewMenu />
         </header>
         <Outlet />
-        <footer className="footer">
+        {/* Staff area: no footer (more room for the calendar); Impressum/Datenschutz are in Einstellungen › Konto and on the staff login (D-061). Public pages keep it. */}
+        {!inTeam && <footer className="footer">
           <a href={`tel:${s.profile.phone}`}>{t('ui.callUs', { phone: s.profile.phoneDisplay })}</a>
           <Link to={`/${slug}/impressum`}>{t('ui.impressum')}</Link>
           <Link to={`/${slug}/datenschutz`}>{t('ui.privacy')}</Link>
-        </footer>
+        </footer>}
       </ThemeProvider>
     </SalonProvider>
   );

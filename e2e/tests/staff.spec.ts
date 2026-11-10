@@ -28,7 +28,12 @@ async function openDay(page: Page, date = DAY, view: 'Mein Tag' | 'Team' = 'Team
   await expect(page.locator('.blk').first()).toBeVisible();
 }
 
-/** Drag the ⠿ handle of the n-th appointment by dy pixels (1.8 px per minute). */
+/** px per minute of the time grid ("Ganzer Tag" fits the screen, "Klassisch" = 1.8), D-060. */
+async function pxPerMin(page: Page) {
+  return Number(await page.locator('.tg-wrap').getAttribute('data-px'));
+}
+
+/** Drag the ⠿ handle of the n-th appointment by dy pixels. */
 async function dragHandle(page: Page, apptId: string, dy: number, dx = 0) {
   const grip = page.locator(`[data-appt="${apptId}"] .grip`).first();
   await grip.scrollIntoViewIfNeeded();
@@ -69,6 +74,8 @@ test.describe('staff', () => {
   test('now line follows the clock; "Heute" scrolls it into the middle of the calendar', async ({ page }) => {
     // the server clock is frozen at Mon 2 Nov 07:00 Berlin; the browser clock runs on from there
     await page.clock.install({ time: new Date('2026-11-02T06:00:00Z') });
+    // centring needs room to scroll: "Klassisch" (in "Ganzer Tag" the whole day is on screen anyway, D-060)
+    await page.addInitScript(() => localStorage.setItem('salon.calZoom', 'classic'));
     await login(page);
     await page.goto(`/${SLUG}/team`);
     await expect(page.locator('.blk').first()).toBeVisible();
@@ -103,7 +110,7 @@ test.describe('staff', () => {
     const d = emptyDay(0);
     const a = await createAppt(page, d, 600); // 10:00–10:30 on an empty day
     await openDay(page, d);
-    await dragHandle(page, a.id, 15 * 1.8 + 2);
+    await dragHandle(page, a.id, 15 * (await pxPerMin(page)) + 2);
     await expect(page.locator('.blk.ghost').first()).toBeVisible();
     await page.mouse.up();
     await expect(page.getByRole('status').filter({ hasText: 'Verschoben' })).toBeVisible();
@@ -118,7 +125,7 @@ test.describe('staff', () => {
     const d = emptyDay(1);
     const a = await createAppt(page, d, 600);
     await openDay(page, d);
-    await dragHandle(page, a.id, (735 - 600) * 1.8); // ~12:15
+    await dragHandle(page, a.id, (735 - 600) * (await pxPerMin(page))); // ~12:15
     await expect(page.locator('.blk.ghost.bad').first()).toBeVisible();
     await expect(page.getByRole('status')).toContainText('Nicht möglich');
     await page.mouse.up();
@@ -131,7 +138,8 @@ test.describe('staff', () => {
     const a = await createAppt(page, d, 540);
     await openDay(page, d);
     await page.evaluate(() => window.scrollTo(0, 0));
-    await page.locator('.tg-wrap').evaluate((el) => (el.scrollTop = 60 * 1.8)); // 09:00 at the top: strip and block both on screen
+    const ppm = await pxPerMin(page);
+    await page.locator('.tg-wrap').evaluate((el, p) => (el.scrollTop = 60 * p), ppm); // 09:00 at the top: strip and block both on screen
     const target = page.locator(`.strip [data-day="${addDays(d, 1)}"]`);
     const tb = (await target.boundingBox())!;
     const grip = (await page.locator(`[data-appt="${a.id}"] .grip`).first().boundingBox())!;
@@ -160,7 +168,7 @@ test.describe('staff', () => {
     await page.mouse.move(cx, cy);
     await page.mouse.down();
     await page.mouse.move(cx, cy + 2, { steps: 2 });
-    await page.mouse.move(cx, cy + 10 * 1.8 + 2, { steps: 8 });
+    await page.mouse.move(cx, cy + 10 * (await pxPerMin(page)) + 2, { steps: 8 });
     await page.waitForTimeout(150); // let the last animation frame of the drag preview run (WebKit)
     await page.mouse.up();
     // the stored result is what matters; the status line is checked afterwards

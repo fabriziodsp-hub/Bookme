@@ -56,6 +56,8 @@ Test locations: `packages/engine/test` (unit + property, Vitest/fast-check), `ap
 | D-057 note in the requests inbox saved first, sent as saved | API `team-admin.test.ts` › note to the client… |
 | D-058 settings by category | e2e `account.spec.ts` › settings by category…; `services.spec.ts` (Leistungen page); `a11y.spec.ts` › settings |
 | D-059 Ansicht in the settings; note saving in the calendar panel | e2e `account.spec.ts` › Ansicht is also a settings category; › calendar panel: the note… |
+| D-060 calendar fits the screen, Ganzer Tag / Klassisch, full screen, wheel | e2e `calendar-view.spec.ts` (fit without page scroll, remembered view, wheel day by day, full screen); `staff.spec.ts` drag tests read the scale from `data-px`; visual `staff-team` baselines updated |
+| D-061 no footer in the staff area, legal links in Konto and login | e2e `account.spec.ts` › settings by category (Konto page) |
 
 ## Staff UX (brief)
 
