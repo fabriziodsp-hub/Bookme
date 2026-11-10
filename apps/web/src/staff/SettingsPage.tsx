@@ -9,15 +9,17 @@ import { useT } from '../lib/i18n';
 import { useLabels } from '../lib/labels';
 import { useSalon } from '../lib/salon';
 import { ServicesEditor } from './ServicesEditor';
+import { ViewSettings } from '../components/ViewMenu';
 import type { PriceEntry, StaffUser } from '../lib/types';
 import { ProfileSwitch, type LoginTarget } from './UserMenu';
 import { ACCENTS, contrast, type Accent, type Preset } from '../theme/palette';
 
-export type SettingsCategory = 'konto' | 'leistungen' | 'preise' | 'oeffnungszeiten' | 'startseite' | 'aussehen' | 'team';
+export type SettingsCategory = 'konto' | 'ansicht' | 'leistungen' | 'preise' | 'oeffnungszeiten' | 'startseite' | 'aussehen' | 'team';
 
 /** Categories in menu order; `owner` = only for the salon owner (D-058). */
 export const CATEGORIES: { id: SettingsCategory; owner: boolean }[] = [
   { id: 'konto', owner: false },
+  { id: 'ansicht', owner: false },
   { id: 'leistungen', owner: true },
   { id: 'preise', owner: true },
   { id: 'oeffnungszeiten', owner: true },
@@ -99,6 +101,14 @@ function Category({ id, me, onLogout, onSwitch }: { id: SettingsCategory; me: St
   switch (id) {
     case 'konto':
       return <Account me={me} onLogout={onLogout} onSwitch={onSwitch} />;
+    case 'ansicht':
+      return (
+        <section className="card" aria-labelledby="vw-h">
+          <h2 id="vw-h">{t('staff.set.ansicht')}</h2>
+          <p className="small muted">{t('staff.set.ansichtIntro')}</p>
+          <ViewSettings />
+        </section>
+      );
     case 'leistungen':
       return (
         <section className="card" aria-labelledby="svc-h">

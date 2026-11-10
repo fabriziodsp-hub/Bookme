@@ -282,6 +282,9 @@ export const de = {
       all: 'Alle Einstellungen',
       konto: 'Konto',
       kontoHint: 'Angemeldet als …, Profil wechseln, Abmelden',
+      ansicht: 'Ansicht',
+      ansichtHint: 'Textgröße, hell/dunkel, Kontrast, Bewegung',
+      ansichtIntro: 'Gilt nur für dieses Gerät und diesen Browser – wie der Knopf „Aa Ansicht“ oben.',
       leistungen: 'Leistungen & Dauern',
       leistungenHint: 'Behandlungen, Phasen und Einwirkzeiten',
       preise: 'Preisliste',
@@ -319,6 +322,7 @@ export const de = {
       hint: 'Die Person dieses Termins wurde gelöscht. Der Termin ist nicht mehr bestätigt: bitte einer Kollegin oder einem Kollegen geben und dann annehmen – oder ablehnen.',
       to: 'Kollegin / Kollege wählen',
       give: 'Termin übergeben',
+      panel: 'Die Person dieses Termins wurde gelöscht. Unter „Anfragen“ einer Kollegin oder einem Kollegen geben (oder in deren Spalte ziehen) – oder hier ablehnen.',
       done: 'Übergeben an {name}. Jetzt annehmen, um ihn wieder zu bestätigen.',
     },
     rqNote: {

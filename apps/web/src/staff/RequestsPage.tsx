@@ -5,8 +5,7 @@ import { dateLong, hm, priceText, formatPhone } from '../lib/format';
 import { useT } from '../lib/i18n';
 import type { Appointment } from '../lib/types';
 import { useInvalidateCalendar, useStylists } from './hooks';
-
-type Decision = 'accept' | 'decline' | 'discuss';
+import { RequestAnswer } from './RequestAnswer';
 
 /** Requests inbox (S-5): oldest first, one-tap decisions. The note to the client is saved first (D-057). */
 export function RequestsPage() {
@@ -31,32 +30,10 @@ function RequestItem({ a, onDone }: { a: Appointment; onDone: (msg: string) => v
   const t = useT();
   const qc = useQueryClient();
   const invalidate = useInvalidateCalendar();
-  const saved = a.clientNoteDraft ?? '';
-  const [text, setText] = useState(saved);
   const [msg, setMsg] = useState<string | null>(null);
-  const dirty = text.trim() !== saved;
   const replace = (dto: Appointment) =>
     qc.setQueryData<{ requests: Appointment[] }>(['requests'], (d) => (d ? { requests: d.requests.map((x) => (x.id === dto.id ? dto : x)) } : d));
-  const save = useMutation({
-    mutationFn: () => api<Appointment>(`/staff/appointments/${a.id}/client-note`, { method: 'PUT', body: { version: a.version, note: text } }),
-    onSuccess: (dto) => {
-      replace(dto);
-      setText(dto.clientNoteDraft ?? '');
-      setMsg(t('staff.rqNote.saved'));
-    },
-    onError: (e) => (setMsg(errorMessage(e)), void qc.invalidateQueries({ queryKey: ['requests'] })),
-  });
-  const decide = useMutation({
-    // Sends exactly the saved note – the buttons are locked while the text has unsaved changes.
-    mutationFn: (decision: Decision) =>
-      api<Appointment>(`/staff/appointments/${a.id}/decision`, { method: 'POST', body: { version: a.version, decision, reason: saved || undefined } }),
-    onSuccess: (dto, decision) => {
-      const who = `${a.customer.firstName} ${a.customer.lastName}`;
-      onDone(`${t(`staff.rqNote.decided.${decision}`)}: ${who}. ${dto.clientNote ? t('staff.rqNote.sent', { note: dto.clientNote }) : t('staff.rqNote.sentNone')}`);
-    },
-    onError: (e) => setMsg(errorMessage(e)),
-    onSettled: () => (void qc.invalidateQueries({ queryKey: ['requests'] }), invalidate()),
-  });
+  const refresh = () => (void qc.invalidateQueries({ queryKey: ['requests'] }), invalidate());
   const stylists = useStylists();
   const [to, setTo] = useState('');
   const reassign = useMutation({
@@ -64,9 +41,8 @@ function RequestItem({ a, onDone }: { a: Appointment; onDone: (msg: string) => v
     mutationFn: () => api<Appointment>(`/staff/appointments/${a.id}/blocks`, { method: 'PATCH', body: { version: a.version, date: a.date, blocks: a.blocks, stylistId: to, notifyCustomer: false } }),
     onSuccess: (dto) => (replace(dto), setMsg(t('staff.reassign.done', { name: stylists.find((s) => s.id === to)?.displayName ?? '' }))),
     onError: (e) => setMsg(errorMessage(e)),
-    onSettled: () => (void qc.invalidateQueries({ queryKey: ['requests'] }), invalidate()),
+    onSettled: refresh,
   });
-  const busy = save.isPending || decide.isPending || reassign.isPending;
   return (
     <article className="list-item" aria-labelledby={`rq-${a.id}`}>
       <div style={{ flex: '1 1 240px' }}>
@@ -93,29 +69,24 @@ function RequestItem({ a, onDone }: { a: Appointment; onDone: (msg: string) => v
                 <option value="">{t('staff.reassign.to')}</option>
                 {stylists.map((s) => <option key={s.id} value={s.id}>{s.displayName}</option>)}
               </select>
-              <button type="button" className="btn" disabled={!to || busy} onClick={() => reassign.mutate()}>{t('staff.reassign.give')}</button>
+              <button type="button" className="btn" disabled={!to || reassign.isPending} onClick={() => reassign.mutate()}>{t('staff.reassign.give')}</button>
             </div>
           </div>
         )}
-        <div className="field" style={{ marginTop: 8, marginBottom: 6 }}>
-          <label htmlFor={`rs-${a.id}`}>{t('staff.clientNote')}</label>
-          <p id={`rs-h-${a.id}`} className="note-hint">{t('staff.clientNoteHint')}</p>
-          <textarea id={`rs-${a.id}`} rows={2} maxLength={500} aria-describedby={`rs-h-${a.id}`} value={text} onChange={(e) => (setText(e.target.value), setMsg(null))} />
-        </div>
-        <div className="row">
-          <button type="button" className="btn" disabled={!dirty || busy} onClick={() => save.mutate()}>{t('staff.rqNote.save')}</button>
-          {dirty && <button type="button" className="btn ghost" disabled={busy} onClick={() => (setText(saved), setMsg(null))}>{t('staff.rqNote.discard')}</button>}
-          <span role="status" className="small">{msg}</span>
-        </div>
-        {saved && !dirty && (
-          <p className="notice small" style={{ marginTop: 8 }}><strong>{t('staff.rqNote.willSend')}</strong> „{saved}“</p>
-        )}
-        {dirty && <p className="notice warn small" id={`rs-u-${a.id}`} style={{ marginTop: 8 }}>{t('staff.rqNote.unsaved')}</p>}
-      </div>
-      <div className="row">
-        <button type="button" className="btn primary" disabled={busy || dirty || a.needsReassign} aria-describedby={dirty ? `rs-u-${a.id}` : a.needsReassign ? `ra-h-${a.id}` : undefined} onClick={() => decide.mutate('accept')}>{t('staff.accept')}</button>
-        {a.status === 'requested' && <button type="button" className="btn" disabled={busy || dirty} aria-describedby={dirty ? `rs-u-${a.id}` : undefined} onClick={() => decide.mutate('discuss')}>{t('staff.toDiscuss')}</button>}
-        <button type="button" className="btn danger" disabled={busy || dirty} aria-describedby={dirty ? `rs-u-${a.id}` : undefined} onClick={() => decide.mutate('decline')}>{t('staff.decline')}</button>
+        {msg && <p className="small" role="status">{msg}</p>}
+        <RequestAnswer
+          key={a.version}
+          a={a}
+          idPrefix="rs"
+          onSaved={replace}
+          onFailed={refresh}
+          acceptLocked={a.needsReassign}
+          acceptLockedHint={`ra-h-${a.id}`}
+          onDecided={(dto, decision) => {
+            onDone(`${t(`staff.rqNote.decided.${decision}`)}: ${a.customer.firstName} ${a.customer.lastName}. ${dto.clientNote ? t('staff.rqNote.sent', { note: dto.clientNote }) : t('staff.rqNote.sentNone')}`);
+            refresh();
+          }}
+        />
       </div>
     </article>
   );

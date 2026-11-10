@@ -51,7 +51,28 @@ Say ''
 if (-not (Get-Command docker -ErrorAction SilentlyContinue)) { Fail 'Docker non trovato. Installa e avvia Docker Desktop.' }
 docker info *> $null
 if ($LASTEXITCODE -ne 0) { Fail 'Docker Desktop non è avviato. Aprilo, aspetta "Engine running" e rilancia lo script.' }
-if (-not (Get-Command cloudflared -ErrorAction SilentlyContinue)) {
+# A terminal opened before "winget install" (e.g. the one inside Docker Desktop) still has the old
+# PATH: reload it from Windows, then also look in the folders winget and the MSI install to.
+function Find-Cloudflared {
+  $cmd = Get-Command cloudflared -ErrorAction SilentlyContinue
+  if ($cmd) { return $cmd.Source }
+  $env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [Environment]::GetEnvironmentVariable('Path', 'User')
+  $cmd = Get-Command cloudflared -ErrorAction SilentlyContinue
+  if ($cmd) { return $cmd.Source }
+  $candidates = @(
+    "$env:LOCALAPPDATA\Microsoft\WinGet\Links\cloudflared.exe",
+    "${env:ProgramFiles(x86)}\cloudflared\cloudflared.exe",
+    "$env:ProgramFiles\cloudflared\cloudflared.exe"
+  )
+  $pkgs = "$env:LOCALAPPDATA\Microsoft\WinGet\Packages"
+  if (Test-Path -LiteralPath $pkgs) {
+    $candidates += Get-ChildItem -LiteralPath $pkgs -Filter 'cloudflared*.exe' -Recurse -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName }
+  }
+  foreach ($c in $candidates) { if ($c -and (Test-Path -LiteralPath $c)) { return $c } }
+  return $null
+}
+$cloudflared = Find-Cloudflared
+if (-not $cloudflared) {
   Fail "cloudflared non trovato. Installalo con:`n  winget install Cloudflare.cloudflared`npoi chiudi e riapri la finestra e rilancia lo script."
 }
 
@@ -66,7 +87,7 @@ try {
   # 3. Open the tunnel and read its public address from the log
   Say '2/4  Apertura del tunnel...'
   Remove-Item -LiteralPath $logOut, $logErr -ErrorAction SilentlyContinue
-  $tunnel = Start-Process -FilePath 'cloudflared' -ArgumentList @('tunnel', '--no-autoupdate', '--url', 'http://localhost:3000') `
+  $tunnel = Start-Process -FilePath $cloudflared -ArgumentList @('tunnel', '--no-autoupdate', '--url', 'http://localhost:3000') `
     -RedirectStandardOutput $logOut -RedirectStandardError $logErr -NoNewWindow -PassThru -ErrorAction Stop
   $url = $null
   $deadline = (Get-Date).AddSeconds(60)

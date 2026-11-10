@@ -9,6 +9,7 @@ import { useLabels } from '../lib/labels';
 import { useSalon } from '../lib/salon';
 import type { Appointment } from '../lib/types';
 import type { UndoItem } from './CalendarPage';
+import { RequestAnswer } from './RequestAnswer';
 
 export function AppointmentPanel(p: {
   a: Appointment;
@@ -25,7 +26,6 @@ export function AppointmentPanel(p: {
   const [date, setDate] = useState(a.date);
   const [time, setTime] = useState(formatHm(a.start));
   const [note, setNote] = useState(a.internalNote ?? '');
-  const [reason, setReason] = useState('');
   const [lateCancel, setLateCancel] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -56,8 +56,6 @@ export function AppointmentPanel(p: {
     const cur = await fresh();
     await api(`/staff/appointments/${a.id}/status`, { method: 'POST', body: { version: cur.version, status, ...extra } });
   };
-  const decide = (decision: 'accept' | 'decline' | 'discuss') =>
-    call(() => api(`/staff/appointments/${a.id}/decision`, { method: 'POST', body: { version: a.version, decision, reason: reason || undefined } }));
 
   const move = (blocks: Block[] | null, d: LocalDate, label: string) => {
     if (!blocks) return setError('Phase zu kurz.');
@@ -103,16 +101,20 @@ export function AppointmentPanel(p: {
 
       {(a.status === 'requested' || a.status === 'discuss') && (
         <section className="card" style={{ marginTop: 8 }} aria-label={t('staff.request')}>
-          <div className="field">
-            <label htmlFor="decl">{t('staff.clientNote')}</label>
-            <p id="decl-h" className="note-hint">{t('staff.clientNoteHint')}</p>
-            <textarea id="decl" rows={2} maxLength={500} aria-describedby="decl-h" value={reason} onChange={(e) => setReason(e.target.value)} />
-          </div>
-          <div className="row" style={{ marginTop: 8 }}>
-            <button type="button" className="btn primary" disabled={busy} onClick={() => decide('accept')}>{t('staff.accept')}</button>
-            {a.status === 'requested' && <button type="button" className="btn" disabled={busy} onClick={() => decide('discuss')}>{t('staff.toDiscuss')}</button>}
-            <button type="button" className="btn danger" disabled={busy} onClick={() => decide('decline')}>{t('staff.decline')}</button>
-          </div>
+          {a.needsReassign && <p id={`pr-ra-${a.id}`} className="notice warn small">{t('staff.reassign.panel')}</p>}
+          <RequestAnswer
+            key={a.version}
+            a={a}
+            idPrefix="decl"
+            onSaved={() => p.onChanged()}
+            onFailed={() => p.onChanged()}
+            acceptLocked={a.needsReassign}
+            acceptLockedHint={`pr-ra-${a.id}`}
+            onDecided={(dto, decision) => {
+              p.setStatus(`${t(`staff.rqNote.decided.${decision}`)}. ${dto.clientNote ? t('staff.rqNote.sent', { note: dto.clientNote }) : t('staff.rqNote.sentNone')}`);
+              p.onChanged();
+            }}
+          />
         </section>
       )}
 
@@ -159,7 +161,7 @@ export function AppointmentPanel(p: {
             <button type="button" className="btn" disabled={busy} onClick={() => call(setStatusTo('confirmed'))}>{t('staff.reopen')}</button>
           )}
           {open && !pastLocked && (
-            <button type="button" className="btn danger" disabled={busy} onClick={() => call(setStatusTo('cancelled', { clientLateCancel: lateCancel, reason: reason || undefined }), { label: t('staff.cancel'), undo: setStatusTo('confirmed'), redo: setStatusTo('cancelled') })}>
+            <button type="button" className="btn danger" disabled={busy} onClick={() => call(setStatusTo('cancelled', { clientLateCancel: lateCancel, reason: a.clientNoteDraft || undefined }), { label: t('staff.cancel'), undo: setStatusTo('confirmed'), redo: setStatusTo('cancelled') })}>
               {t('staff.cancel')}
             </button>
           )}

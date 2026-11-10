@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
-import { login, SLUG } from './helpers';
+import { H, login, SLUG } from './helpers';
 
 const TAGS = ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'];
 
@@ -39,7 +39,7 @@ test('account menu on the name: switch profile and log out; no logout tab any mo
 test('settings by category: overview, one page per category, logout under "Konto" (D-058)', async ({ page }) => {
   await login(page);
   await page.goto(`/${SLUG}/team/einstellungen`);
-  for (const name of ['Konto', 'Leistungen & Dauern', 'Preisliste', 'Öffnungszeiten', 'Startseite', 'Aussehen', 'Team']) {
+  for (const name of ['Konto', 'Ansicht', 'Leistungen & Dauern', 'Preisliste', 'Öffnungszeiten', 'Startseite', 'Aussehen', 'Team']) {
     await expect(page.getByRole('link', { name: new RegExp(`^${name}`) }).first()).toBeVisible();
   }
   await axe(page);
@@ -84,4 +84,30 @@ test('owner deletes a staff profile after confirming (D-054)', async ({ page }) 
   await page.getByRole('dialog').getByRole('button', { name: 'Endgültig löschen' }).click();
   await expect(page.getByText('Profil von E2E Aushilfe gelöscht.')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Profil löschen: E2E Aushilfe' })).toHaveCount(0);
+});
+
+test('Ansicht is also a settings category (D-059)', async ({ page }) => {
+  await login(page);
+  await page.goto(`/${SLUG}/team/einstellungen/ansicht`);
+  await expect(page.getByRole('heading', { level: 1, name: 'Ansicht' })).toBeVisible();
+  await page.getByRole('button', { name: /125 %/ }).click();
+  await expect(page.locator('html')).toHaveAttribute('style', /--scale: 1.25/);
+  await page.getByRole('button', { name: /100 %/ }).click();
+  await axe(page);
+});
+
+test('calendar panel: the note to the client is saved first, then the answer is possible (D-057)', async ({ page }) => {
+  test.skip(test.info().project.name !== 'desktop', 'shared requests – one project is enough');
+  await login(page);
+  const r = await page.request.get('/api/staff/requests', { headers: H });
+  const req = ((await r.json()) as { requests: { id: string; date: string; needsReassign: boolean }[] }).requests.find((x) => !x.needsReassign)!;
+  await page.goto(`/${SLUG}/team?date=${req.date}`);
+  await page.getByRole('button', { name: 'Team', exact: true }).click();
+  await page.locator(`.blk[data-appt="${req.id}"]`).first().click();
+  const note = page.getByLabel('Notiz (optional)');
+  await note.fill('E2E: Bitte Termin bestätigen.');
+  await expect(page.getByRole('button', { name: 'Annehmen' })).toBeDisabled();
+  await page.getByRole('button', { name: 'Notiz speichern' }).click();
+  await expect(page.getByText('Wird mit Ihrer Antwort gesendet:')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Annehmen' })).toBeEnabled();
 });
