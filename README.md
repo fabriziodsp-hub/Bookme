@@ -19,6 +19,8 @@ UI in German (i18n ready for Italian and English), code and docs in English. Bui
 docker compose up --build
 ```
 
+**Online demo from a Windows PC:** double-click `demo-online.cmd` (Docker Desktop running, `winget install Cloudflare.cloudflared` once). It starts the Docker demo, opens a temporary `trycloudflare.com` tunnel, sets `PUBLIC_BASE_URL` in a git-ignored `docker-compose.override.yml`, prints the public links and undoes everything when you press Enter. Demo settings stay on (public demo passwords, dev mailbox): no real client data. `demo-online.cmd -Build` rebuilds the image first.
+
 **Option B – local Node 22 + PostgreSQL 16 (three commands):**
 
 ```bash
