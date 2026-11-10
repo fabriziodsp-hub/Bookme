@@ -130,6 +130,10 @@ export const AppointmentSchema = z
     price: Price.nullable(),
     expiresAt: z.string().nullable(),
     clientNote: z.string().nullable(),
+    /** Saved note not yet sent (requests inbox, D-057); staff only. */
+    clientNoteDraft: z.string().nullable(),
+    /** The stylist was deleted: give it to a colleague before confirming (D-054). */
+    needsReassign: z.boolean(),
     createdAt: z.string(),
     version: z.number().int(),
     customer: z.object({

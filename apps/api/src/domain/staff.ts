@@ -7,7 +7,7 @@ export async function listStaff(q: Queryable, tenantId: string) {
   const { rows } = await q.query<{ id: string; display_name: string; color: string; active: boolean; public_name: string | null; show_public: boolean; email: string | null; username: string | null; role: string | null }>(
     `SELECT s.id, s.display_name, s.color, s.active, s.public_name, s.show_public, u.email, u.username, u.role
        FROM stylist s LEFT JOIN staff_user u ON u.stylist_id = s.id
-      WHERE s.tenant_id = $1 ORDER BY s.sort_order, s.display_name`,
+      WHERE s.tenant_id = $1 AND s.deleted_at IS NULL ORDER BY s.sort_order, s.display_name`,
     [tenantId],
   );
   return rows.map((r) => ({ id: r.id, displayName: r.display_name, color: r.color, active: r.active, publicName: r.public_name, showPublic: r.show_public, email: r.email, username: r.username, role: r.role }));
@@ -106,4 +106,80 @@ export async function publicTeam(q: Queryable, tenantId: string): Promise<{ publ
     [tenantId],
   );
   return rows.map((r) => ({ publicName: r.public_name }));
+}
+
+/**
+ * Owner: delete a staff profile (D-054). Refused for the owner's own profile and for the last owner.
+ * Upcoming appointments become "Rücksprache" and wait for reassignment (needs_reassign).
+ * Without any history the stylist and the login are deleted; otherwise the stylist row is kept
+ * (display name only, inactive, hidden everywhere) and the login data are erased.
+ */
+export async function deleteStaff(
+  db: Queryable & { connect?: unknown },
+  ctx: { tenantId: string; now: Date },
+  stylistId: string,
+  actorUserId: string,
+): Promise<{ removed: 'deleted' | 'anonymized'; toReassign: number }> {
+  return withTx(db as never, async (tx) => {
+    const s = await tx.query<{ id: string }>('SELECT id FROM stylist WHERE tenant_id = $1 AND id = $2 AND deleted_at IS NULL FOR UPDATE', [ctx.tenantId, stylistId]);
+    if (!s.rowCount) throw Errors.notFound();
+    const u = await tx.query<{ id: string; role: string }>('SELECT id, role FROM staff_user WHERE tenant_id = $1 AND stylist_id = $2 AND deleted_at IS NULL', [ctx.tenantId, stylistId]);
+    const user = u.rows[0];
+    if (user?.id === actorUserId) throw new AppError('DELETE_SELF', 409, 'Das eigene Profil kann nicht gelöscht werden.');
+    if (user?.role === 'owner') {
+      const owners = await tx.query<{ n: number }>("SELECT count(*)::int AS n FROM staff_user WHERE tenant_id = $1 AND role = 'owner' AND deleted_at IS NULL", [ctx.tenantId]);
+      if (owners.rows[0]!.n <= 1) throw new AppError('LAST_OWNER', 409, 'Der Salon braucht mindestens eine Inhaberin bzw. einen Inhaber.');
+    }
+    // Upcoming appointments are no longer confirmed: "Rücksprache", waiting for staff to give them
+    // to a colleague or to decline them (requests inbox). Past ones stay in the history.
+    const moved = await tx.query<{ id: string; status: string }>(
+      `SELECT id, status FROM appointment
+        WHERE tenant_id = $1 AND stylist_id = $2 AND start_at >= $3 AND status IN ('requested','discuss','confirmed') FOR UPDATE`,
+      [ctx.tenantId, stylistId, ctx.now],
+    );
+    if (moved.rowCount) {
+      await tx.query(
+        "UPDATE appointment SET status = 'discuss', expires_at = NULL, needs_reassign = true, version = version + 1, updated_at = $3 WHERE tenant_id = $1 AND id = ANY($2::uuid[])",
+        [ctx.tenantId, moved.rows.map((a) => a.id), ctx.now],
+      );
+    }
+    for (const a of moved.rows) {
+      await tx.query('INSERT INTO appointment_event (tenant_id, appointment_id, actor, type, payload) VALUES ($1, $2, $3, $4, $5)', [
+        ctx.tenantId, a.id, `staff:${actorUserId}`, 'stylist_deleted', JSON.stringify({ previousStatus: a.status }),
+      ]);
+    }
+    // Complete removal when nothing refers to the person (savepoint: a foreign key means history).
+    await tx.query('SAVEPOINT del_staff');
+    try {
+      if (user) {
+        await tx.query('DELETE FROM session WHERE staff_user_id = $1', [user.id]);
+        await tx.query('DELETE FROM staff_user WHERE id = $1', [user.id]);
+      }
+      await tx.query('DELETE FROM stylist WHERE tenant_id = $1 AND id = $2', [ctx.tenantId, stylistId]);
+      await tx.query('RELEASE SAVEPOINT del_staff');
+      return { removed: 'deleted' as const, toReassign: 0 };
+    } catch (e) {
+      if (pgCode(e) !== PG.FOREIGN_KEY_VIOLATION) throw e;
+      await tx.query('ROLLBACK TO SAVEPOINT del_staff');
+    }
+    if (user) {
+      await tx.query('DELETE FROM session WHERE staff_user_id = $1', [user.id]);
+      await tx.query(
+        "UPDATE staff_user SET deleted_at = $2, email = 'deleted-' || id || '@invalid', username = NULL, password_hash = '!' WHERE id = $1",
+        [user.id, ctx.now],
+      );
+    }
+    await tx.query('UPDATE stylist SET deleted_at = $3, active = false, show_public = false, public_name = NULL WHERE tenant_id = $1 AND id = $2', [ctx.tenantId, stylistId, ctx.now]);
+    return { removed: 'anonymized' as const, toReassign: moved.rowCount ?? 0 };
+  });
+}
+
+/** Colleagues with a login, for "Profil wechseln" (D-055): names and user names only, no e-mails. */
+export async function teamLogins(q: Queryable, tenantId: string) {
+  const { rows } = await q.query<{ id: string; display_name: string; username: string | null }>(
+    `SELECT u.id, u.display_name, u.username FROM staff_user u JOIN stylist s ON s.id = u.stylist_id
+      WHERE u.tenant_id = $1 AND u.deleted_at IS NULL AND s.active ORDER BY s.sort_order, u.display_name`,
+    [tenantId],
+  );
+  return rows.map((r) => ({ id: r.id, displayName: r.display_name, username: r.username }));
 }

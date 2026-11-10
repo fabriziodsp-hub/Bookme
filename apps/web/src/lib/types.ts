@@ -98,6 +98,10 @@ export interface Appointment {
   price: { cents: number; isFrom: boolean; birthdayDiscount: boolean } | null;
   expiresAt: string | null;
   clientNote: string | null;
+  /** Saved note to the client of an open request, not sent yet (D-057). */
+  clientNoteDraft: string | null;
+  /** The stylist was deleted: give it to a colleague before confirming (D-054). */
+  needsReassign: boolean;
   createdAt: string;
   version: number;
   customer: { id: string; firstName: string; lastName: string; phone: string | null; email: string | null; noShowCount: number };

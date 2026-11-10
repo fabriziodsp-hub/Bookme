@@ -11,6 +11,7 @@ import {
   listInRange,
   listOpenRequests,
   staffAgeCheck,
+  saveClientNoteDraft,
   staffDecide,
   staffSetFee,
   staffSetNote,
@@ -27,7 +28,7 @@ import { Errors } from '../../domain/errors.js';
 import { dayRange } from '../../domain/occupancy.js';
 import { listPrices, setPrices } from '../../domain/prices.js';
 import { ACCENTS, setHomepage, setOpeningHours, setTheme, THEME_PRESETS } from '../../domain/tenants.js';
-import { createStaff, listStaff, setStylistActive, setStylistPublic, setUsername } from '../../domain/staff.js';
+import { createStaff, deleteStaff, listStaff, setStylistActive, setStylistPublic, setUsername, teamLogins } from '../../domain/staff.js';
 import { requireOwner, requireStaff, type AppEnv } from '../middleware.js';
 import {
   AbsenceSchema,
@@ -122,6 +123,21 @@ export function staffRoutes(deps: Deps) {
       responses: { 200: json(z.object({ requests: z.array(AppointmentSchema) }), 'Requests') },
     }),
     async (c) => c.json({ requests: await listOpenRequests(c.get('ctx').db, c.get('ctx')) }, 200),
+  );
+
+  app.openapi(
+    createRoute({
+      method: 'put',
+      path: '/appointments/{id}/client-note',
+      tags: ['staff'],
+      summary: 'Save the note to the client of an open request (sent with the answer, D-057)',
+      request: { params: IdParam, ...body(z.object({ version: z.number().int(), note: z.string().max(500) })) },
+      responses: { 200: json(AppointmentSchema, 'Saved'), ...errorResponses },
+    }),
+    async (c) => {
+      const b = c.req.valid('json');
+      return c.json(await saveClientNoteDraft(c.get('ctx'), c.req.valid('param').id, b.version, b.note, actorOf(c)), 200);
+    },
   );
 
   app.openapi(
@@ -300,17 +316,39 @@ export function staffRoutes(deps: Deps) {
     },
   );
 
+  // ----- profile switch (D-055): colleagues with a login; names and user names only -----
+  app.openapi(
+    createRoute({
+      method: 'get',
+      path: '/team-logins',
+      tags: ['staff'],
+      summary: 'Colleagues with a login, for switching the profile on a shared device',
+      responses: { 200: json(z.object({ logins: z.array(z.object({ id: z.string(), displayName: z.string(), username: z.string().nullable() })) }), 'Logins') },
+    }),
+    async (c) => c.json({ logins: await teamLogins(c.get('ctx').db, c.get('ctx').tenantId) }, 200),
+  );
+
   // ----- customers -----
   app.openapi(
     createRoute({
       method: 'get',
       path: '/customers',
       tags: ['staff'],
-      summary: 'Search clients by name, phone or e-mail',
-      request: { query: z.object({ q: z.string().max(100) }) },
-      responses: { 200: json(z.object({ customers: z.array(CustomerSummarySchema) }), 'Results') },
+      summary: 'Client list (all clients without q) or search by name, phone or e-mail; sorted by name or next appointment',
+      request: {
+        query: z.object({
+          q: z.string().max(100).default(''),
+          sort: z.enum(['name', 'next']).default('name'),
+          limit: z.coerce.number().int().min(1).max(100).default(50),
+          offset: z.coerce.number().int().min(0).max(100000).default(0),
+        }),
+      },
+      responses: { 200: json(z.object({ customers: z.array(CustomerSummarySchema), hasMore: z.boolean() }), 'Results') },
     }),
-    async (c) => c.json({ customers: await searchCustomers(c.get('ctx').db, c.get('ctx'), c.req.valid('query').q) }, 200),
+    async (c) => {
+      const { q, sort, limit, offset } = c.req.valid('query');
+      return c.json(await searchCustomers(c.get('ctx').db, c.get('ctx'), q, { sort, limit, offset }), 200);
+    },
   );
 
   // Client card: contact, all appointments, recipes/notes, health data (only with explicit consent).
@@ -457,6 +495,20 @@ export function staffRoutes(deps: Deps) {
       responses: { 200: json(z.object({ show: z.boolean(), publicName: z.string().nullable() }), 'Saved'), ...errorResponses },
     }),
     async (c) => c.json(await setStylistPublic(c.get('ctx').db, c.get('ctx').tenantId, c.req.valid('param').id, c.req.valid('json')), 200),
+  );
+  app.openapi(
+    createRoute({
+      method: 'delete',
+      path: '/admin/staff/{id}',
+      tags: ['owner'],
+      summary: 'Delete a staff profile (D-054): fully, or keeping only the name for past appointments',
+      request: { params: IdParam },
+      responses: { 200: json(z.object({ removed: z.enum(['deleted', 'anonymized']) }), 'Removed'), ...errorResponses },
+    }),
+    async (c) => {
+      const ctx = c.get('ctx');
+      return c.json(await deleteStaff(ctx.db, { tenantId: ctx.tenantId, now: ctx.clock.now() }, c.req.valid('param').id, c.get('user').id), 200);
+    },
   );
   app.post('/admin/staff/:id/active', async (c) => {
     const { active } = await c.req.json<{ active: boolean }>();

@@ -18,6 +18,7 @@ export function createPool(connectionString: string, max = 10): Db {
 export const PG = {
   EXCLUSION_VIOLATION: '23P01',
   UNIQUE_VIOLATION: '23505',
+  FOREIGN_KEY_VIOLATION: '23503',
   SERIALIZATION_FAILURE: '40001',
   DEADLOCK: '40P01',
 } as const;

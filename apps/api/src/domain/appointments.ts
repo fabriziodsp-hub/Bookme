@@ -92,6 +92,8 @@ export interface AppointmentRow {
   price_is_from: boolean;
   expires_at: Date | null;
   client_note: string | null;
+  client_note_draft: string | null;
+  needs_reassign: boolean;
   cancel_reason: string | null;
   start_at: Date;
   end_at: Date;
@@ -127,6 +129,8 @@ export interface AppointmentDto {
   expiresAt: string | null;
   /** Note from the salon to the client (sent with the decision, shown on the booking page). */
   clientNote: string | null;
+  clientNoteDraft: string | null;
+  needsReassign: boolean;
   version: number;
   createdAt: string;
   customer: { id: string; firstName: string; lastName: string; phone: string | null; email: string | null; noShowCount: number };
@@ -188,6 +192,8 @@ export async function toDtos(q: Queryable, ctx: Ctx, rows: AppointmentRow[]): Pr
       price: r.price_cents_snapshot !== null ? { cents: r.price_cents_snapshot, isFrom: r.price_is_from, birthdayDiscount: r.birthday_discount } : null,
       expiresAt: r.expires_at?.toISOString() ?? null,
       clientNote: r.client_note,
+      clientNoteDraft: r.client_note_draft,
+      needsReassign: r.needs_reassign,
       version: r.version,
       createdAt: r.created_at.toISOString(),
       customer: { id: r.customer_id, firstName: r.first_name, lastName: r.last_name, phone: r.phone, email: r.email, noShowCount: noShows.get(r.customer_id) ?? 0 },
@@ -536,7 +542,7 @@ async function deactivate(
   const now = ctx.clock.now();
   const upd = await tx.query<AppointmentRow>(
     `UPDATE appointment SET status = $3, cancelled_at = CASE WHEN $3 = 'cancelled' THEN $4::timestamptz ELSE cancelled_at END,
-            cancel_reason = COALESCE($5, cancel_reason), client_note = COALESCE($6, client_note),
+            cancel_reason = COALESCE($5, cancel_reason), client_note = COALESCE($6, client_note), client_note_draft = NULL,
             fee_status = CASE WHEN $7 THEN 'due' ELSE fee_status END,
             version = version + 1, updated_at = $4
       WHERE tenant_id = $1 AND id = $2 RETURNING *`,
@@ -595,6 +601,7 @@ async function replaceBlocks(
   const upd = await tx.query<AppointmentRow>(
     `UPDATE appointment SET start_at = $3, end_at = $4, stylist_id = $5, status = $6, birthday_discount = $7,
             expires_at = CASE WHEN $6 = 'requested' THEN $8::timestamptz ELSE NULL END,
+            needs_reassign = (needs_reassign AND stylist_id = $5), -- given to a colleague (D-054)
             version = version + 1, updated_at = $9
       WHERE tenant_id = $1 AND id = $2 RETURNING *`,
     [ctx.tenantId, a.id, rows[0]!.start_at, rows.at(-1)!.end_at, stylistId, status, birthday, requestExpiresAt(ctx.cfg, now, rows[0]!.start_at), now],
@@ -653,6 +660,9 @@ export async function staffDecide(ctx: Ctx, id: string, version: number, decisio
     if (a.version !== version) throw Errors.versionConflict();
     const allowed = decision === 'discuss' ? a.status === 'requested' : a.status === 'requested' || a.status === 'discuss';
     if (!allowed) throw Errors.notChangeable();
+    if (decision === 'accept' && a.needs_reassign) {
+      throw new AppError('NEEDS_REASSIGN', 409, 'Die Person dieses Termins wurde gelöscht. Bitte den Termin zuerst einer Kollegin oder einem Kollegen geben.');
+    }
     if (decision === 'decline') {
       const r = await deactivate(tx, ctx, a, 'declined', actor, { declineReason: reason?.trim().slice(0, 500) || undefined, template: 'declined' });
       return (await toDtos(tx, ctx, [r]))[0]!;
@@ -660,12 +670,31 @@ export async function staffDecide(ctx: Ctx, id: string, version: number, decisio
     const status: Status = decision === 'accept' ? 'confirmed' : 'discuss';
     const note = reason?.trim().slice(0, 500) || null;
     const upd = await tx.query<AppointmentRow>(
-      `UPDATE appointment SET status = $3, expires_at = NULL, client_note = $5, version = version + 1, updated_at = $4
+      `UPDATE appointment SET status = $3, expires_at = NULL, client_note = $5, client_note_draft = NULL, version = version + 1, updated_at = $4
         WHERE tenant_id = $1 AND id = $2 RETURNING *`,
       [ctx.tenantId, a.id, status, ctx.clock.now(), note],
     );
     await event(tx, ctx, a.id, actor, decision === 'accept' ? 'confirmed' : 'discuss', { reason });
     await notify(tx, ctx, decision === 'accept' ? 'confirmation' : 'discuss', upd.rows[0]!, customerOf(a));
+    return (await toDtos(tx, ctx, [{ ...a, ...upd.rows[0]! }]))[0]!;
+  });
+}
+
+/**
+ * Save the note to the client of an open request without answering yet (D-057). Staff only: the
+ * client sees a note only after the answer (client_note). Optimistic lock like every staff edit.
+ */
+export async function saveClientNoteDraft(ctx: Ctx, id: string, version: number, note: string, actor: Actor): Promise<AppointmentDto> {
+  return withTx(ctx.db, async (tx) => {
+    const a = await getById(tx, ctx, id, true);
+    if (a.version !== version) throw Errors.versionConflict();
+    if (a.status !== 'requested' && a.status !== 'discuss') throw Errors.notChangeable();
+    const draft = note.trim().slice(0, 500) || null;
+    const upd = await tx.query<AppointmentRow>(
+      'UPDATE appointment SET client_note_draft = $3, version = version + 1, updated_at = $4 WHERE tenant_id = $1 AND id = $2 RETURNING *',
+      [ctx.tenantId, a.id, draft, ctx.clock.now()],
+    );
+    await event(tx, ctx, a.id, actor, 'note_draft', { length: draft?.length ?? 0 });
     return (await toDtos(tx, ctx, [{ ...a, ...upd.rows[0]! }]))[0]!;
   });
 }
