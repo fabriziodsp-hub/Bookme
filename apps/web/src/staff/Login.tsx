@@ -1,6 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { clearLoginTarget, peekLoginTarget } from './UserMenu';
+import { LegalLinks } from './SettingsPage';
 import { api, errorMessage } from '../lib/api';
 import { useT } from '../lib/i18n';
 
@@ -50,6 +51,7 @@ export function Login({ title, slug }: { title: string; slug?: string | undefine
         {error && <p className="notice error" role="alert">{error}</p>}
         <button className="btn primary block" disabled={busy}>{t('staff.login')}</button>
       </form>
+      {slug && <LegalLinks />}
     </main>
   );
 }

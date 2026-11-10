@@ -145,6 +145,7 @@ function Account({ me, onLogout, onSwitch }: { me: StaffUser; onLogout: () => vo
         <p className="small muted">{t('staff.account.switchHint')}</p>
         <ProfileSwitch me={me} onSwitch={onSwitch} />
       </section>
+      <LegalLinks />
     </>
   );
 }
@@ -531,5 +532,17 @@ function DeleteStaffDialog({ person, onClose }: { person: { id: string; displayN
         <button type="button" className="btn" autoFocus onClick={() => ref.current?.close()}>{t('staff.abort')}</button>
       </div>
     </dialog>
+  );
+}
+
+/** Impressum / Datenschutz: the staff area has no footer (D-061), so they are here and on the staff login. */
+export function LegalLinks() {
+  const t = useT();
+  const { slug = '' } = useParams();
+  return (
+    <nav className="row small" aria-label={t('staff.set.legal')} style={{ marginTop: 8 }}>
+      <Link className="contact-link" to={`/${slug}/impressum`}>{t('ui.impressum')}</Link>
+      <Link className="contact-link" to={`/${slug}/datenschutz`}>{t('ui.privacy')}</Link>
+    </nav>
   );
 }

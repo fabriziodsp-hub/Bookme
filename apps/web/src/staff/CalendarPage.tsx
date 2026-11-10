@@ -21,7 +21,7 @@ import {
   type Interval,
   type LocalDate,
 } from '@salon/engine';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { MonthSheet } from '../booking/MonthSheet';
 import { api, ApiError, errorMessage } from '../lib/api';
 import { dateLong, dateShort, weekdayLong, weekdayShort } from '../lib/format';
@@ -34,7 +34,19 @@ import { AppointmentPanel } from './AppointmentPanel';
 import { useCalendar, useInvalidateCalendar, type CalendarData } from './hooks';
 import { NewAppointmentDialog } from './NewAppointmentDialog';
 
-const PX = 1.8; // px per minute: 5′ = 9 px, 15′ = 27 px, 60′ = 108 px
+/** px per minute. "Klassisch": 5′ = 9 px, 15′ = 27 px, 60′ = 108 px (scrolls). "Ganzer Tag" fits the opening
+ * hours into the visible height, but never below FIT_MIN, so a 30′ appointment keeps two readable lines (D-060). */
+const PX_CLASSIC = 1.8;
+const FIT_MIN = 1.05;
+type Zoom = 'fit' | 'classic';
+const ZOOM_KEY = 'salon.calZoom';
+function loadZoom(): Zoom {
+  try {
+    return localStorage.getItem(ZOOM_KEY) === 'classic' ? 'classic' : 'fit';
+  } catch {
+    return 'fit';
+  }
+}
 const ACTIVE = new Set(['requested', 'discuss', 'confirmed', 'completed', 'no_show']);
 
 interface Column {
@@ -96,6 +108,19 @@ export function CalendarPage({ me }: { me: StaffUser }) {
   const [dialog, setDialog] = useState<null | 'new' | 'absence' | 'month'>(null);
   const [absenceSel, setAbsenceSel] = useState<Absence | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
+  const rootRef = useRef<HTMLElement>(null);
+  const [zoom, setZoomState] = useState<Zoom>(loadZoom);
+  const setZoom = (z: Zoom) => {
+    setZoomState(z);
+    try {
+      localStorage.setItem(ZOOM_KEY, z);
+    } catch {
+      /* per-device convenience only */
+    }
+  };
+  const [full, setFull] = useState(false);
+  // The time grid fills the rest of the screen: the page itself does not scroll, the wheel scrolls the grid (D-060).
+  const [gridH, setGridH] = useState(0);
 
   const weekStart = startOfWeek(date);
   const mineId = mode === 'mine' ? (me.stylistId ?? undefined) : undefined;
@@ -108,6 +133,49 @@ export function CalendarPage({ me }: { me: StaffUser }) {
     const ds = WEEKDAYS.map((d) => cfg.weeklyHours[d]).filter(Boolean) as { open: string; close: string }[];
     return { open: Math.min(...ds.map((d) => parseHm(d.open))), close: Math.max(...ds.map((d) => parseHm(d.close))) };
   }, [cfg]);
+
+  useLayoutEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+    const measure = () => {
+      const top = el.getBoundingClientRect().top + (full ? 0 : window.scrollY);
+      const nav = document.querySelector<HTMLElement>('.staff-nav');
+      const bottomBar = !full && nav && getComputedStyle(nav).position === 'fixed' ? nav.offsetHeight : 0;
+      setGridH(Math.max(320, Math.floor(window.innerHeight - top - bottomBar - 12)));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(document.body);
+    window.addEventListener('resize', measure);
+    return () => (ro.disconnect(), window.removeEventListener('resize', measure));
+  }, [full, mode, range]);
+  const HEAD = 49; // sticky column header
+  // Phones keep "Klassisch": dragging by finger needs 9 px per 5′ (the switch is hidden there).
+  const phone = useMedia('(max-width: 700px)');
+  const px = zoom === 'classic' || phone || !gridH ? PX_CLASSIC : Math.min(PX_CLASSIC, Math.max(FIT_MIN, (gridH - HEAD - 2) / (close - open)));
+
+  // Full screen: the real Fullscreen API where available (desktop, Android), otherwise only the layout (iPhone).
+  const toggleFull = async () => {
+    const next = !full;
+    setFull(next);
+    try {
+      if (next && !document.fullscreenElement) await document.documentElement.requestFullscreen?.();
+      if (!next && document.fullscreenElement) await document.exitFullscreen();
+    } catch {
+      /* layout-only full screen */
+    }
+  };
+  useEffect(() => {
+    const onChange = () => !document.fullscreenElement && setFull(false); // Escape / browser button
+    document.addEventListener('fullscreenchange', onChange);
+    return () => document.removeEventListener('fullscreenchange', onChange);
+  }, []);
+  useEffect(() => {
+    if (!full) return;
+    const k = (e: KeyboardEvent) => e.key === 'Escape' && !document.fullscreenElement && !selected && !dialog && setFull(false);
+    document.addEventListener('keydown', k);
+    return () => document.removeEventListener('keydown', k);
+  }, [full, selected, dialog]);
 
   const columns: Column[] = useMemo(() => {
     const stylists = data?.stylists ?? [];
@@ -224,7 +292,7 @@ export function CalendarPage({ me }: { me: StaffUser }) {
       raf = requestAnimationFrame(() => {
         const a = byId.get(d.id);
         if (!a) return;
-        const dm = snap((e.clientY - d.y0) / PX, cfg.staffStepMinutes);
+        const dm = snap((e.clientY - d.y0) / px, cfg.staffStepMinutes);
         let col = d.col;
         let dropDay: LocalDate | null = null;
         if (d.mode === 'move') {
@@ -272,7 +340,7 @@ export function CalendarPage({ me }: { me: StaffUser }) {
       document.removeEventListener('pointercancel', onCancel);
       cancelAnimationFrame(raf);
     };
-  }, [byId, columns, cfg, validate, applyChange, t]);
+  }, [byId, columns, cfg, validate, applyChange, t, px]);
 
   // Keyboard: ↑/↓ ±5′, Shift ±15′, Enter opens the panel.
   const onBlockKey = (e: React.KeyboardEvent, a: Appointment) => {
@@ -297,11 +365,11 @@ export function CalendarPage({ me }: { me: StaffUser }) {
       el.scrollTop = 0;
       return;
     }
-    const y = (Math.min(Math.max(nowRef.current, open), close) - open) * PX;
-    const top = jump ? y - el.clientHeight / 2 + 30 : y - 60 * PX;
+    const y = (Math.min(Math.max(nowRef.current, open), close) - open) * px;
+    const top = jump ? y - el.clientHeight / 2 + 30 : y - 60 * px;
     const calm = document.documentElement.dataset.motion === 'reduced' || matchMedia('(prefers-reduced-motion: reduce)').matches;
     el.scrollTo({ top: Math.max(0, top), behavior: jump && !calm ? 'smooth' : 'auto' });
-  }, [date, today, open, close, mode, range, jump]);
+  }, [date, today, open, close, mode, range, jump, px]);
   const goToday = () => {
     setDate(today);
     setJump((n) => n + 1);
@@ -319,7 +387,37 @@ export function CalendarPage({ me }: { me: StaffUser }) {
     return x;
   };
 
-  const height = (close - open) * PX;
+  // Mouse wheel: over the day strip it moves day by day; over the grid it scrolls the hours, and when the
+  // whole day already fits (nothing to scroll) it moves day by day too. One step per gesture (D-060).
+  const stripRef = useRef<HTMLDivElement>(null);
+  const wheel = useRef({ acc: 0, until: 0 });
+  const stepRef = useRef<(dir: 1 | -1) => void>(() => undefined);
+  stepRef.current = (dir) => setDate((d) => nextOpen(d, dir));
+  useEffect(() => {
+    const onWheel = (grid: boolean) => (e: WheelEvent) => {
+      const el = wrapRef.current;
+      if (grid && el && el.scrollHeight > el.clientHeight + 2) return; // normal scrolling
+      if (e.ctrlKey || Math.abs(e.deltaY) < Math.abs(e.deltaX)) return; // zoom / sideways scrolling stay native
+      e.preventDefault();
+      const w = wheel.current;
+      const now = Date.now();
+      if (now < w.until) return;
+      w.acc += e.deltaY;
+      if (Math.abs(w.acc) < 60) return;
+      stepRef.current(w.acc > 0 ? 1 : -1);
+      w.acc = 0;
+      w.until = now + 450;
+    };
+    const s = stripRef.current;
+    const g = wrapRef.current;
+    const fs = onWheel(false);
+    const fg = onWheel(true);
+    s?.addEventListener('wheel', fs, { passive: false });
+    g?.addEventListener('wheel', fg, { passive: false });
+    return () => (s?.removeEventListener('wheel', fs), g?.removeEventListener('wheel', fg));
+  }, []);
+
+  const height = (close - open) * px;
   const showNow = columns.some((c) => c.date === today) && now.minute >= open && now.minute <= close;
   const hours = Array.from({ length: Math.ceil((close - open) / 60) }, (_, i) => open + i * 60);
   const colMin = mode === 'team' ? 150 : range === 'week' ? 110 : 220;
@@ -332,8 +430,8 @@ export function CalendarPage({ me }: { me: StaffUser }) {
     return a.blocks.map((b, i) => (
       <div
         key={`${a.id}-${i}`}
-        className={`blk ${i === 0 ? 'first' : i === a.blocks.length - 1 ? 'last' : 'mid'} ${i === 0 && a.blocks.length > 1 ? 'has-next' : ''} ${b.kind === 'free' ? 'free' : ''} ${statusCls} ${selected === a.id ? 'sel' : ''} ${isDragged ? 'dim' : ''}`}
-        style={{ top: (b.start - open) * PX, height: Math.max(14, (b.end - b.start) * PX) }}
+        className={`blk ${(b.end - b.start) * px < 44 ? 'short' : ''} ${i === 0 ? 'first' : i === a.blocks.length - 1 ? 'last' : 'mid'} ${i === 0 && a.blocks.length > 1 ? 'has-next' : ''} ${b.kind === 'free' ? 'free' : ''} ${statusCls} ${selected === a.id ? 'sel' : ''} ${isDragged ? 'dim' : ''}`}
+        style={{ top: (b.start - open) * px, height: Math.max(14, (b.end - b.start) * px) }}
         tabIndex={0}
         role="button"
         aria-pressed={selected === a.id}
@@ -350,6 +448,8 @@ export function CalendarPage({ me }: { me: StaffUser }) {
               {(a.status === 'requested' || a.status === 'discuss') && <span className="tag">{a.status === 'discuss' ? t('staff.discuss') : t('staff.request')}</span>}
               {name}
             </span>
+            {/* team note: one line in the block (full text in the panel), D-060 */}
+            {a.internalNote && <span className="nt"><span aria-hidden="true">📝 </span><span className="sr-only">{t('staff.cal.teamNote')}: </span>{a.internalNote}</span>}
             <span className="tm">{formatHm(a.start)}–{formatHm(a.end)}</span>{' '}
           </>
         )}
@@ -370,7 +470,7 @@ export function CalendarPage({ me }: { me: StaffUser }) {
   };
 
   return (
-    <main id="main" className={`wrap-wide staff ${sel ? 'with-panel' : ''}`}>
+    <main id="main" ref={rootRef} className={`wrap-wide staff cal-page ${sel ? 'with-panel' : ''} ${full ? 'cal-full' : ''}`}>
       <h1 className="sr-only">{t('staff.nav.calendar')}</h1>
       <div className="toolbar">
         <div className="seg" role="group" aria-label="Ansicht">
@@ -383,6 +483,13 @@ export function CalendarPage({ me }: { me: StaffUser }) {
             <button type="button" aria-pressed={range === 'week'} onClick={() => setRange('week')}>{t('staff.week')}</button>
           </div>
         )}
+        <div className="seg hide-m" role="group" aria-label={t('staff.cal.zoom')}>
+          <button type="button" aria-pressed={zoom === 'fit'} onClick={() => setZoom('fit')}>{t('staff.cal.fit')}</button>
+          <button type="button" aria-pressed={zoom === 'classic'} onClick={() => setZoom('classic')}>{t('staff.cal.classic')}</button>
+        </div>
+        <button type="button" className="btn" aria-pressed={full} onClick={() => void toggleFull()}>
+          <span aria-hidden="true">{full ? '⤡' : '⤢'} </span>{full ? t('staff.cal.exitFull') : t('staff.cal.full')}
+        </button>
         <span className="spacer" />
         <button type="button" className="btn" disabled={!undoStack.length} onClick={() => runUndo('undo')} aria-label={`${t('staff.undo')}${undoStack.at(-1) ? `: ${undoStack.at(-1)!.label}` : ''}`}>↶ <span className="hide-s">{t('staff.undo')}</span></button>
         <button type="button" className="btn" disabled={!redoStack.length} onClick={() => runUndo('redo')} aria-label={t('staff.redo')}>↷ <span className="hide-s">{t('staff.redo')}</span></button>
@@ -403,7 +510,7 @@ export function CalendarPage({ me }: { me: StaffUser }) {
         <button type="button" className="btn date" onClick={() => setDialog('month')}><span aria-hidden="true">📅 </span><span className="sr-only">{t('staff.pickDate')}: </span><span className="hide-s">{dateLong(date)}</span><span className="show-s">{dateShort(date)}<span className="sr-only"> ({dateLong(date)})</span></span></button>
       </div>
 
-      <div className="strip" role="group" aria-label="Woche">
+      <div className="strip" role="group" aria-label="Woche" ref={stripRef}>
         {week.map((d) => {
           const n = (data?.appointments ?? []).filter((a) => a.date === d && ACTIVE.has(a.status) && (mode === 'team' || a.stylistId === mineId)).length;
           const openDay = !!dayHours(d);
@@ -430,7 +537,7 @@ export function CalendarPage({ me }: { me: StaffUser }) {
 
       <p className="toast" role="status" aria-live="polite">{status}</p>
 
-      <div className="tg-wrap" ref={wrapRef} tabIndex={0} role="region" aria-label={`${t('staff.nav.calendar')} ${dateLong(date)}`}>
+      <div className="tg-wrap" ref={wrapRef} tabIndex={0} role="region" aria-label={`${t('staff.nav.calendar')} ${dateLong(date)}`} data-px={px.toFixed(3)} style={gridH ? { height: gridH } : undefined}>
         <div className="tg" style={{ gridTemplateColumns: gridCols }}>
           <div className="tg-head corner" aria-hidden="true" />
           {columns.map((c) => (
@@ -444,9 +551,9 @@ export function CalendarPage({ me }: { me: StaffUser }) {
           ))}
           <div className="tg-axis" style={{ height, position: 'sticky' }} aria-hidden="true">
             {hours.map((h) => (
-              <span key={h} style={{ top: (h - open) * PX + (h === open ? 8 : 0) }}>{formatHm(h)}</span>
+              <span key={h} style={{ top: (h - open) * px + (h === open ? 8 : 0) }}>{formatHm(h)}</span>
             ))}
-            {showNow && <b className="tg-now-time" style={{ top: (now.minute - open) * PX }}>{formatHm(now.minute)}</b>}
+            {showNow && <b className="tg-now-time" style={{ top: (now.minute - open) * px }}>{formatHm(now.minute)}</b>}
           </div>
           {columns.map((c) => {
             const h = dayHours(c.date);
@@ -457,21 +564,21 @@ export function CalendarPage({ me }: { me: StaffUser }) {
                 key={c.key}
                 className={`tg-col ${drag?.col.key === c.key && drag.mode === 'move' && !drag.dropDay ? 'drop-target' : ''}`}
                 data-col={c.key}
-                style={{ height, ['--h60' as string]: `${60 * PX}px`, ['--h15' as string]: `${15 * PX}px`, ['--h5' as string]: `${5 * PX}px` }}
+                style={{ height, ['--h60' as string]: `${60 * px}px`, ['--h15' as string]: `${15 * px}px`, ['--h5' as string]: `${5 * px}px` }}
               >
                 {!h ? (
                   <div className="tg-off" style={{ top: 0, bottom: 0 }}>{t('ui.closed')}</div>
                 ) : (
                   <>
-                    {h.open > open && <div className="tg-off" style={{ top: 0, height: (h.open - open) * PX }} />}
-                    {h.close < close && <div className="tg-off" style={{ top: (h.close - open) * PX, bottom: 0 }}>{t('ui.closed')}</div>}
+                    {h.open > open && <div className="tg-off" style={{ top: 0, height: (h.open - open) * px }} />}
+                    {h.close < close && <div className="tg-off" style={{ top: (h.close - open) * px, bottom: 0 }}>{t('ui.closed')}</div>}
                     {h.breaks.map((b, i) => (
-                      <div key={i} className="tg-off" style={{ top: (b.start - open) * PX, height: (b.end - b.start) * PX }}>{t('ui.break')}</div>
+                      <div key={i} className="tg-off" style={{ top: (b.start - open) * px, height: (b.end - b.start) * px }}>{t('ui.break')}</div>
                     ))}
                   </>
                 )}
                 {absenceIntervals(c.stylistId, c.date).map((ab) => (
-                  <button key={ab.a.id} type="button" className="abs" style={{ top: (Math.max(ab.start, open) - open) * PX, height: (Math.min(ab.end, close) - Math.max(ab.start, open)) * PX }} onClick={() => setAbsenceSel(ab.a)}>
+                  <button key={ab.a.id} type="button" className="abs" style={{ top: (Math.max(ab.start, open) - open) * px, height: (Math.min(ab.end, close) - Math.max(ab.start, open)) * px }} onClick={() => setAbsenceSel(ab.a)}>
                     {t(`absenceKind.${ab.a.kind}`)}
                     {ab.a.note ? ` – ${ab.a.note}` : ''}
                   </button>
@@ -479,11 +586,11 @@ export function CalendarPage({ me }: { me: StaffUser }) {
                 {list.map((a) => renderAppt(a, c))}
                 {ghost &&
                   ghost.blocks!.map((b, i) => (
-                    <div key={`g${i}`} className={`blk ghost ${b.kind === 'free' ? 'free' : ''} ${ghost.valid ? '' : 'bad'}`} style={{ top: (b.start - open) * PX, height: Math.max(14, (b.end - b.start) * PX) }} aria-hidden="true">
+                    <div key={`g${i}`} className={`blk ghost ${b.kind === 'free' ? 'free' : ''} ${ghost.valid ? '' : 'bad'}`} style={{ top: (b.start - open) * px, height: Math.max(14, (b.end - b.start) * px) }} aria-hidden="true">
                       {i === 0 && <span className="t">{formatHm(b.start)}–{formatHm(ghost.blocks!.at(-1)!.end)}</span>}
                     </div>
                   ))}
-                {c.date === today && showNow && <div className="tg-now" style={{ top: (now.minute - open) * PX }} aria-hidden="true" />}
+                {c.date === today && showNow && <div className="tg-now" style={{ top: (now.minute - open) * px }} aria-hidden="true" />}
               </div>
             );
           })}
@@ -528,4 +635,15 @@ export function CalendarPage({ me }: { me: StaffUser }) {
       )}
     </main>
   );
+}
+
+function useMedia(q: string) {
+  const [m, setM] = useState(() => typeof matchMedia === 'function' && matchMedia(q).matches);
+  useEffect(() => {
+    const mq = matchMedia(q);
+    const on = () => setM(mq.matches);
+    mq.addEventListener('change', on);
+    return () => mq.removeEventListener('change', on);
+  }, [q]);
+  return m;
 }
