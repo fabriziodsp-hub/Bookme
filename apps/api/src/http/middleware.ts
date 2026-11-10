@@ -10,7 +10,9 @@ export type AppEnv = { Variables: { user: StaffUser; requestId: string; ctx: Ctx
 
 export function clientIp(c: Context, trustProxy: boolean): string {
   if (trustProxy) {
-    const fwd = c.req.header('x-forwarded-for')?.split(',')[0]?.trim();
+    // The right-most entry is the one our own reverse proxy / tunnel added; everything left of it
+    // comes from the client and can be forged (a forged first entry would dodge the rate limits).
+    const fwd = c.req.header('x-forwarded-for')?.split(',').map((x) => x.trim()).filter(Boolean).at(-1);
     if (fwd) return fwd;
   }
   try {

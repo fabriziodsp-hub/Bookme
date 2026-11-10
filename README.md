@@ -38,7 +38,7 @@ Then open:
 | `/salon-beispiel/team` | staff area | `maria` or `maria@salon-beispiel.example.com` (owner), `sophie`, `deniz` – password `demo-passwort-2026` |
 | `/admin` | platform operator | `admin` or `admin@plattform.example.com` – same password |
 | `/api/openapi.json` | OpenAPI 3.1 | – |
-| `/api/dev/mailbox` | e-mails "sent" in dev mode | – |
+| `/api/dev/mailbox` | e-mails "sent" in dev mode (own salon) | staff login |
 
 The demo seed is deterministic: two salons (isolation demo), three stylists, a price list and ~1 500 appointments over the next three months filling **≈ 70 %** of working time, plus a few open requests. All names are invented; e-mails use `example.com`.
 
