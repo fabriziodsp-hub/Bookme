@@ -6,3 +6,4 @@ coverage/
 e2e/lighthouse-*.html
 e2e/test-results/
 e2e/playwright-report/
+docker-compose.override.yml
