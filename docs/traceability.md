@@ -55,6 +55,7 @@ Test locations: `packages/engine/test` (unit + property, Vitest/fast-check), `ap
 | D-056 client list without search, A–Z, sort by next appointment, paging | API `team-admin.test.ts` › client list…; e2e `account.spec.ts` › client list… (axe) |
 | D-057 note in the requests inbox saved first, sent as saved | API `team-admin.test.ts` › note to the client… |
 | D-058 settings by category | e2e `account.spec.ts` › settings by category…; `services.spec.ts` (Leistungen page); `a11y.spec.ts` › settings |
+| D-059 Ansicht in the settings; note saving in the calendar panel | e2e `account.spec.ts` › Ansicht is also a settings category; › calendar panel: the note… |
 
 ## Staff UX (brief)
 
