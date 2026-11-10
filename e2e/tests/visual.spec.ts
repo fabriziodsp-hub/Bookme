@@ -11,7 +11,7 @@ test.skip(() => !!process.env.CI && !process.env.VISUAL, 'visual baselines are m
 test('client week calendar (week of 16 Nov)', async ({ page }) => {
   await noSplash(page);
   await page.goto(`/${SLUG}/buchen`);
-  await chooseService(page, /^Schnitt & Farbe – Ansatz 45/);
+  await chooseService(page, /^Schnitt & Farbe – Ansatz \d/); // name + computed duration ("1 Std. 45 Min."), not "bis Spitzen"
   await page.getByRole('button', { name: 'Nächste Woche' }).click();
   await page.getByRole('button', { name: 'Nächste Woche' }).click();
   const cal = page.locator('.cal');
