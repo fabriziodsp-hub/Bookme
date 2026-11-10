@@ -327,6 +327,7 @@ export const de = {
     },
     rqNote: {
       save: 'Notiz speichern',
+      saveName: 'Notiz speichern (an die Kundin / den Kunden)',
       saved: 'Notiz gespeichert.',
       discard: 'Änderung verwerfen',
       willSend: 'Wird mit Ihrer Antwort gesendet:',

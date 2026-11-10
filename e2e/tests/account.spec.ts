@@ -107,7 +107,7 @@ test('calendar panel: the note to the client is saved first, then the answer is 
   const note = page.getByLabel('Notiz (optional)');
   await note.fill('E2E: Bitte Termin bestätigen.');
   await expect(page.getByRole('button', { name: 'Annehmen' })).toBeDisabled();
-  await page.getByRole('button', { name: 'Notiz speichern' }).click();
+  await page.getByRole('button', { name: 'Notiz speichern (an die Kundin / den Kunden)' }).click();
   await expect(page.getByText('Wird mit Ihrer Antwort gesendet:')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Annehmen' })).toBeEnabled();
 });

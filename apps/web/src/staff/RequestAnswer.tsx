@@ -67,7 +67,8 @@ export function RequestAnswer({
         <textarea id={id} rows={2} maxLength={500} aria-describedby={`${id}-h`} value={text} onChange={(e) => (setText(e.target.value), setMsg(null))} />
       </div>
       <div className="row">
-        <button type="button" className="btn" disabled={!dirty || busy} onClick={save}>{t('staff.rqNote.save')}</button>
+        {/* the panel also has "Notiz speichern" for the internal note: the name says which one (visible text included) */}
+        <button type="button" className="btn" aria-label={t('staff.rqNote.saveName')} disabled={!dirty || busy} onClick={save}>{t('staff.rqNote.save')}</button>
         {dirty && <button type="button" className="btn ghost" disabled={busy} onClick={() => (setText(saved), setMsg(null))}>{t('staff.rqNote.discard')}</button>}
         <span role="status" className="small">{msg}</span>
       </div>
