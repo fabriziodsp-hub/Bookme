@@ -1,31 +1,141 @@
-/** Owner admin (S-10): services & durations, price list, opening hours (with conflict preview), theme, team. */
+/** Settings (S-10, D-058): account for everyone; services & durations, prices, opening hours, homepage, theme, team for the owner. */
 import { WEEKDAYS, type Weekday } from '@salon/engine';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { Link, Navigate, NavLink, Route, Routes, useParams } from 'react-router';
 import { api, errorMessage } from '../lib/api';
 import { dateLong, hm } from '../lib/format';
 import { useT } from '../lib/i18n';
 import { useLabels } from '../lib/labels';
 import { useSalon } from '../lib/salon';
 import { ServicesEditor } from './ServicesEditor';
-import type { PriceEntry } from '../lib/types';
+import type { PriceEntry, StaffUser } from '../lib/types';
+import { ProfileSwitch, type LoginTarget } from './UserMenu';
 import { ACCENTS, contrast, type Accent, type Preset } from '../theme/palette';
 
-export function SettingsPage() {
+export type SettingsCategory = 'konto' | 'leistungen' | 'preise' | 'oeffnungszeiten' | 'startseite' | 'aussehen' | 'team';
+
+/** Categories in menu order; `owner` = only for the salon owner (D-058). */
+export const CATEGORIES: { id: SettingsCategory; owner: boolean }[] = [
+  { id: 'konto', owner: false },
+  { id: 'leistungen', owner: true },
+  { id: 'preise', owner: true },
+  { id: 'oeffnungszeiten', owner: true },
+  { id: 'startseite', owner: true },
+  { id: 'aussehen', owner: true },
+  { id: 'team', owner: true },
+];
+
+/**
+ * Settings by category (D-058): an overview with one large link per category, and one page per
+ * category with the category list beside it (desktop) or above it (phone). Everyone has "Konto"
+ * (logout, switch profile); the salon settings are for the owner only.
+ */
+export function SettingsPage({ me, onLogout, onSwitch }: { me: StaffUser; onLogout: () => void; onSwitch: (to: LoginTarget) => void }) {
+  const t = useT();
+  const { slug = '' } = useParams();
+  const owner = me.role === 'owner';
+  const cats = CATEGORIES.filter((c) => owner || !c.owner);
+  const base = `/${slug}/team/einstellungen`;
+  return (
+    <Routes>
+      <Route
+        index
+        element={
+          <main id="main" className="wrap">
+            <h1>{t('staff.nav.settings')}</h1>
+            <ul className="set-grid">
+              {cats.map((c) => (
+                <li key={c.id}>
+                  <Link className="set-tile" to={`${base}/${c.id}`}>
+                    <span className="set-tile-t">{t(`staff.set.${c.id}`)}</span>
+                    <span className="small muted">{t(`staff.set.${c.id}Hint`)}</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </main>
+        }
+      />
+      {cats.map((c) => (
+        <Route
+          key={c.id}
+          path={c.id}
+          element={
+            <div className="wrap-wide set-layout">
+              <nav className="set-nav" aria-label={t('staff.nav.settings')} ref={showActive}>
+                <Link to={base} className="set-back">‹ {t('staff.set.all')}</Link>
+                <ul>
+                  {cats.map((x) => (
+                    <li key={x.id}><NavLink to={`${base}/${x.id}`} className="set-link">{t(`staff.set.${x.id}`)}</NavLink></li>
+                  ))}
+                </ul>
+              </nav>
+              <main id="main" className="set-main">
+                <h1>{t(`staff.set.${c.id}`)}</h1>
+                {/* one section per category: its own heading would repeat the h1 → only for screen readers */}
+                <div className={c.id === 'konto' ? undefined : 'set-single'}>
+                  <Category id={c.id} me={me} onLogout={onLogout} onSwitch={onSwitch} />
+                </div>
+              </main>
+            </div>
+          }
+        />
+      ))}
+      <Route path="*" element={<Navigate to={base} replace />} />
+    </Routes>
+  );
+}
+
+/** Phones: the category row scrolls sideways – bring the current category into view. */
+function showActive(nav: HTMLElement | null) {
+  const a = nav?.querySelector<HTMLElement>('.set-link.active');
+  const ul = a?.closest('ul');
+  if (a && ul && ul.scrollWidth > ul.clientWidth) ul.scrollLeft += a.getBoundingClientRect().left - ul.getBoundingClientRect().left - (ul.clientWidth - a.offsetWidth) / 2;
+}
+
+function Category({ id, me, onLogout, onSwitch }: { id: SettingsCategory; me: StaffUser; onLogout: () => void; onSwitch: (to: LoginTarget) => void }) {
+  const t = useT();
+  switch (id) {
+    case 'konto':
+      return <Account me={me} onLogout={onLogout} onSwitch={onSwitch} />;
+    case 'leistungen':
+      return (
+        <section className="card" aria-labelledby="svc-h">
+          <h2 id="svc-h">{t('staff.svc.title')}</h2>
+          <ServicesEditor endpoint="/staff/admin/services" queryKey={['catalog']} />
+        </section>
+      );
+    case 'preise':
+      return <Prices />;
+    case 'oeffnungszeiten':
+      return <Hours />;
+    case 'startseite':
+      return <HomepageTexts />;
+    case 'aussehen':
+      return <ThemePicker />;
+    case 'team':
+      return <Team me={me} />;
+  }
+}
+
+/** Konto (everyone): who is logged in, switch to a colleague's profile, log out (D-055). */
+function Account({ me, onLogout, onSwitch }: { me: StaffUser; onLogout: () => void; onSwitch: (to: LoginTarget) => void }) {
   const t = useT();
   return (
-    <main id="main" className="wrap">
-      <h1>{t('staff.nav.settings')}</h1>
-      <section className="card" aria-labelledby="svc-h">
-        <h2 id="svc-h">{t('staff.svc.title')}</h2>
-        <ServicesEditor endpoint="/staff/admin/services" queryKey={['catalog']} />
+    <>
+      <section className="card" aria-labelledby="ac-h">
+        <h2 id="ac-h">{t('staff.account.signedInAs')}</h2>
+        <p style={{ margin: 0 }}><strong>{me.displayName}</strong> · {me.role === 'owner' ? t('staff.owner') : t('staff.stylistRole')}</p>
+        <p className="small muted">{me.email}</p>
+        <button type="button" className="btn" onClick={onLogout}>{t('staff.logout')}</button>
       </section>
-      <HomepageTexts />
-      <Prices />
-      <Hours />
-      <ThemePicker />
-      <Team />
-    </main>
+      <section className="card" aria-labelledby="sw-h">
+        <h2 id="sw-h">{t('staff.account.switch')}</h2>
+        <p className="small muted">{t('staff.account.switchHint')}</p>
+        <ProfileSwitch me={me} onSwitch={onSwitch} />
+      </section>
+    </>
   );
 }
 
@@ -207,8 +317,9 @@ function ThemePicker() {
   );
 }
 
-function Team() {
+function Team({ me }: { me: StaffUser }) {
   const t = useT();
+  const [del, setDel] = useState<{ id: string; displayName: string } | null>(null);
   const q = useQuery({ queryKey: ['staff'], queryFn: () => api<{ staff: { id: string; displayName: string; email: string | null; username: string | null; role: string | null; active: boolean; color: string; publicName: string | null; showPublic: boolean }[] }>('/staff/admin/staff') });
   const [f, setF] = useState({ displayName: '', email: '', username: '', password: '', role: 'stylist' });
   const [msg, setMsg] = useState<string | null>(null);
@@ -232,8 +343,23 @@ function Team() {
           {s.email && <UsernameEdit id={s.id} name={s.displayName} current={s.username} onSaved={() => void q.refetch()} />}
           <PublicToggle id={s.id} name={s.displayName} show={s.showPublic} publicName={s.publicName} onSaved={() => void q.refetch()} />
           <button type="button" className="btn" onClick={async () => { await api(`/staff/admin/staff/${s.id}/active`, { method: 'POST', body: { active: !s.active } }); void q.refetch(); }}>{s.active ? 'Deaktivieren' : 'Aktivieren'}</button>
+          {s.id !== me.stylistId && (
+            <button type="button" className="btn danger" aria-label={`${t('staff.del.button')}: ${s.displayName}`} onClick={() => setDel({ id: s.id, displayName: s.displayName })}>{t('staff.del.button')}</button>
+          )}
         </div>
       ))}
+      {del && (
+        <DeleteStaffDialog
+          person={del}
+          onClose={(result) => {
+            setDel(null);
+            if (result) {
+              setMsg(result);
+              void q.refetch();
+            }
+          }}
+        />
+      )}
       <h3 style={{ marginTop: 12 }}>{t('staff.addStaff')}</h3>
       <div className="row">
         <input aria-label={t('staff.displayName')} placeholder={t('staff.displayName')} value={f.displayName} onChange={(e) => setF({ ...f, displayName: e.target.value })} style={{ flex: '1 1 160px' }} />
@@ -349,3 +475,51 @@ function PublicToggle({ id, name, show, publicName, onSaved }: { id: string; nam
   );
 }
 
+
+/**
+ * Owner: delete a staff profile after an explicit confirmation (D-054). Modal <dialog>: focus stays
+ * inside, Escape cancels. Past appointments stay in the history; upcoming ones wait in the requests.
+ */
+function DeleteStaffDialog({ person, onClose }: { person: { id: string; displayName: string }; onClose: (result: string | null) => void }) {
+  const t = useT();
+  const qc = useQueryClient();
+  const ref = useRef<HTMLDialogElement>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    const d = ref.current;
+    if (d && !d.open) d.showModal();
+  }, []);
+  const confirm = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const r = await api<{ removed: 'deleted' | 'anonymized'; toReassign: number }>(`/staff/admin/staff/${person.id}`, { method: 'DELETE' });
+      void qc.invalidateQueries({ queryKey: ['requests'] });
+      void qc.invalidateQueries({ queryKey: ['cal'] });
+      ref.current?.close();
+      onClose(r.toReassign ? t('staff.del.doneReassign', { name: person.displayName, n: r.toReassign }) : t('staff.del.done', { name: person.displayName }));
+    } catch (e) {
+      setError(errorMessage(e));
+      setBusy(false);
+    }
+  };
+  return (
+    <dialog ref={ref} className="del-dialog" aria-labelledby="del-h" aria-describedby="del-d" onClose={() => onClose(null)}>
+      <h2 id="del-h">{t('staff.del.title', { name: person.displayName })}</h2>
+      <div id="del-d">
+        <ul className="small">
+          <li>{t('staff.del.past')}</li>
+          <li>{t('staff.del.future')}</li>
+          <li>{t('staff.del.login')}</li>
+        </ul>
+        <p><strong>{t('staff.del.final')}</strong></p>
+      </div>
+      {error && <p className="notice error" role="alert">{error}</p>}
+      <div className="row">
+        <button type="button" className="btn danger" disabled={busy} onClick={confirm}>{t('staff.del.confirm')}</button>
+        <button type="button" className="btn" autoFocus onClick={() => ref.current?.close()}>{t('staff.abort')}</button>
+      </div>
+    </dialog>
+  );
+}

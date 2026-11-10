@@ -102,7 +102,7 @@ export async function staffDigest(ctx: Ctx): Promise<number> {
   if (!open.length) return 0;
   const windowMs = ctx.cfg.staffDigestHours * 3_600_000;
   const slot = Math.floor(ctx.clock.now().getTime() / windowMs);
-  const { rows: staff } = await ctx.db.query<{ email: string }>('SELECT email FROM staff_user WHERE tenant_id = $1', [ctx.tenantId]);
+  const { rows: staff } = await ctx.db.query<{ email: string }>('SELECT email FROM staff_user WHERE tenant_id = $1 AND deleted_at IS NULL', [ctx.tenantId]);
   const msg = renderStaffDigest({
     salon: ctx.profile,
     url: salonUrl(ctx, '/team/anfragen'),

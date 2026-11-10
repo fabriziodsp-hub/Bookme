@@ -10,7 +10,7 @@ import { login, noSplash, SLUG } from './helpers';
 test('owner adds a service in the editor, clients can book it, the owner removes it again', async ({ page, browser }) => {
   test.skip(test.info().project.name !== 'desktop', 'shared catalogue – one project is enough');
   await login(page);
-  await page.goto(`/${SLUG}/team/einstellungen`);
+  await page.goto(`/${SLUG}/team/einstellungen/leistungen`);
   const editor = page.locator('section[aria-labelledby="svc-h"]');
   await editor.getByRole('button', { name: '+ Neue Leistung' }).click();
   const card = editor.locator('details').last();
@@ -49,7 +49,7 @@ test('owner adds a service in the editor, clients can book it, the owner removes
 
 test('a service with appointments can only be hidden', async ({ page }) => {
   await login(page);
-  await page.goto(`/${SLUG}/team/einstellungen`);
+  await page.goto(`/${SLUG}/team/einstellungen/leistungen`);
   const card = page.locator('section[aria-labelledby="svc-h"] details', { hasText: 'Haarschnitt' }).first();
   await card.locator('summary').click();
   await expect(card.getByText('Hat Termine – kann nur ausgeblendet werden.')).toBeVisible();

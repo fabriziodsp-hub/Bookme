@@ -16,47 +16,62 @@ export interface CustomerSummary {
   last: { id: string; date: string; start: number; serviceLabel: string; status: string } | null;
 }
 
-/** Search by name, e-mail or phone fragment (min. 2 characters). */
-export async function searchCustomers(q: Queryable, ctx: Ctx, term: string, limit = 20): Promise<CustomerSummary[]> {
+/**
+ * Client list (S-9, D-056): without a search term all clients, otherwise a search by name, e-mail or
+ * phone fragment (min. 2 characters). Sorted by name or by next appointment (clients without an
+ * upcoming appointment last, by name). Paged with limit/offset; one query (no N+1).
+ */
+export async function searchCustomers(
+  q: Queryable,
+  ctx: Ctx,
+  term: string,
+  opts: { sort?: 'name' | 'next'; limit?: number; offset?: number } = {},
+): Promise<{ customers: CustomerSummary[]; hasMore: boolean }> {
   const t = term.trim();
-  if (t.length < 2) return [];
+  if (t.length === 1) return { customers: [], hasMore: false };
+  const limit = Math.min(Math.max(opts.limit ?? 50, 1), 100);
+  const offset = Math.max(opts.offset ?? 0, 0);
   const like = `%${t.toLowerCase().replace(/[\\%_]/g, (m) => `\\${m}`)}%`;
   const digits = t.replace(/\D/g, '');
+  const order = opts.sort === 'next'
+    ? 'n.start_at ASC NULLS LAST, c.last_name, c.first_name, c.id'
+    : 'c.last_name, c.first_name, c.id';
+  const now = ctx.clock.now();
   const { rows } = await q.query<{
     id: string; first_name: string; last_name: string; phone: string | null; email: string | null; no_shows: number; total: number;
+    n_id: string | null; n_start: Date | null; n_service: string | null; n_variant: string | null; n_finish: boolean | null;
+    l_id: string | null; l_start: Date | null; l_service: string | null; l_variant: string | null; l_finish: boolean | null; l_status: string | null;
   }>(
-    `SELECT c.id, c.first_name, c.last_name, c.phone, c.email,
-            count(*) FILTER (WHERE a.status = 'no_show') AS no_shows, count(a.id) AS total
-       FROM customer c LEFT JOIN appointment a ON a.customer_id = c.id AND a.tenant_id = c.tenant_id
-      WHERE c.tenant_id = $4 AND c.anonymized_at IS NULL AND (
+    `SELECT c.id, c.first_name, c.last_name, c.phone, c.email, st.no_shows, st.total,
+            n.id AS n_id, n.start_at AS n_start, n.service_id AS n_service, n.variant AS n_variant, n.finish AS n_finish,
+            l.id AS l_id, l.start_at AS l_start, l.service_id AS l_service, l.variant AS l_variant, l.finish AS l_finish, l.status AS l_status
+       FROM customer c
+       CROSS JOIN LATERAL (SELECT count(*) FILTER (WHERE a.status = 'no_show')::int AS no_shows, count(*)::int AS total
+                             FROM appointment a WHERE a.customer_id = c.id AND a.tenant_id = c.tenant_id) st
+       LEFT JOIN LATERAL (SELECT id, start_at, service_id, variant, finish FROM appointment
+                           WHERE customer_id = c.id AND tenant_id = c.tenant_id AND start_at >= $5 AND status IN ('requested','discuss','confirmed')
+                           ORDER BY start_at LIMIT 1) n ON true
+       LEFT JOIN LATERAL (SELECT id, start_at, service_id, variant, finish, status FROM appointment
+                           WHERE customer_id = c.id AND tenant_id = c.tenant_id AND start_at < $5
+                           ORDER BY start_at DESC LIMIT 1) l ON true
+      WHERE c.tenant_id = $4 AND c.anonymized_at IS NULL AND ($1 = '' OR
             lower(c.first_name || ' ' || c.last_name) LIKE $1 OR lower(c.last_name || ' ' || c.first_name) LIKE $1
          OR lower(coalesce(c.email, '')) LIKE $1
          OR ($2 <> '' AND length($2) >= 3 AND regexp_replace(coalesce(c.phone, ''), '\\D', '', 'g') LIKE '%' || $2 || '%'))
-      GROUP BY c.id ORDER BY c.last_name, c.first_name LIMIT $3`,
-    [like, digits, limit, ctx.tenantId],
+      ORDER BY ${order} LIMIT $3 OFFSET $6`,
+    [t ? like : '', digits, limit + 1, ctx.tenantId, now, offset],
   );
-  const now = ctx.clock.now();
-  const out: CustomerSummary[] = [];
-  for (const r of rows) {
-    const appts = await q.query<{ id: string; start_at: Date; status: string; service_id: string; variant: string | null; finish: boolean }>(
-      `(SELECT id, start_at, status, service_id, variant, finish FROM appointment WHERE customer_id = $1 AND start_at >= $2 AND status IN ('requested','discuss','confirmed') ORDER BY start_at LIMIT 1)
-       UNION ALL
-       (SELECT id, start_at, status, service_id, variant, finish FROM appointment WHERE customer_id = $1 AND start_at < $2 ORDER BY start_at DESC LIMIT 1)`,
-      [r.id, now],
-    );
-    const fmt = (a: (typeof appts.rows)[number]) => {
-      const l = fromInstant(a.start_at, ctx.cfg.timeZone);
-      return { id: a.id, date: l.date, start: l.minute, serviceLabel: serviceLabel(ctx.cfg, { serviceId: a.service_id, variant: a.variant ?? undefined, finish: a.finish }), status: a.status };
-    };
-    const next = appts.rows.find((a) => a.start_at >= now);
-    const last = appts.rows.find((a) => a.start_at < now);
-    out.push({
-      id: r.id, firstName: r.first_name, lastName: r.last_name, phone: r.phone, email: r.email,
-      noShowCount: r.no_shows, appointmentCount: r.total,
-      next: next ? fmt(next) : null, last: last ? fmt(last) : null,
-    });
-  }
-  return out;
+  const fmt = (id: string, start: Date, service: string, variant: string | null, finish: boolean | null) => {
+    const l = fromInstant(start, ctx.cfg.timeZone);
+    return { id, date: l.date, start: l.minute, serviceLabel: serviceLabel(ctx.cfg, { serviceId: service, variant: variant ?? undefined, finish: !!finish }) };
+  };
+  const customers = rows.slice(0, limit).map((r) => ({
+    id: r.id, firstName: r.first_name, lastName: r.last_name, phone: r.phone, email: r.email,
+    noShowCount: r.no_shows, appointmentCount: r.total,
+    next: r.n_id && r.n_start && r.n_service ? fmt(r.n_id, r.n_start, r.n_service, r.n_variant, r.n_finish) : null,
+    last: r.l_id && r.l_start && r.l_service ? { ...fmt(r.l_id, r.l_start, r.l_service, r.l_variant, r.l_finish), status: r.l_status ?? '' } : null,
+  }));
+  return { customers, hasMore: rows.length > limit };
 }
 
 /** Art. 15 DSGVO export of everything stored about a customer. */

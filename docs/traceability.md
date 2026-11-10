@@ -50,6 +50,11 @@ Test locations: `packages/engine/test` (unit + property, Vitest/fast-check), `ap
 | D-050 readable 404, `/{slug}/admin` → settings | e2e `login.spec.ts` › /{salon}/admin … readable page |
 | D-051 logo = home (staff: today's calendar, clients: booking); client name in the panel opens the card | e2e `navigation.spec.ts` (2 tests); axe in `a11y.spec.ts` › appointment panel |
 | D-052 public homepage, booking at /buchen, opt-in team with public name, no staff names in the public config | API `homepage.test.ts`; e2e `homepage.spec.ts` (content + live status + booking link; axe in 3 themes with reduced motion; owner texts and team); Lighthouse `/salon-beispiel` ≥ 90 |
+| D-054 delete staff profile with confirmation; history kept, upcoming → Rücksprache until reassigned | API `team-admin.test.ts` (complete removal; history + reassign + accept; own profile / last owner / stylist refused); e2e `account.spec.ts` › owner deletes a staff profile (dialog + axe) |
+| D-055 account menu on the name, profile switch, no logout tab | API `team-admin.test.ts` › colleague list…; e2e `account.spec.ts` › account menu… (Escape, focus, prefilled login, axe) |
+| D-056 client list without search, A–Z, sort by next appointment, paging | API `team-admin.test.ts` › client list…; e2e `account.spec.ts` › client list… (axe) |
+| D-057 note in the requests inbox saved first, sent as saved | API `team-admin.test.ts` › note to the client… |
+| D-058 settings by category | e2e `account.spec.ts` › settings by category…; `services.spec.ts` (Leistungen page); `a11y.spec.ts` › settings |
 
 ## Staff UX (brief)
 

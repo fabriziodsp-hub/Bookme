@@ -62,13 +62,13 @@ export async function login(db: Db, clock: Clock, identifier: string, password: 
   const { rows } = byEmail
     ? await db.query<UserRow & { password_hash: string }>(
         `SELECT u.* FROM staff_user u LEFT JOIN tenant t ON t.id = u.tenant_id
-          WHERE u.email = $1 AND (u.tenant_id IS NULL OR t.active)`,
+          WHERE u.email = $1 AND u.deleted_at IS NULL AND (u.tenant_id IS NULL OR t.active)`,
         [name],
       )
     : slug
       ? await db.query<UserRow & { password_hash: string }>(
           `SELECT u.* FROM staff_user u JOIN tenant t ON t.id = u.tenant_id
-            WHERE u.username = $1 AND t.slug = $2 AND t.active`,
+            WHERE u.username = $1 AND u.deleted_at IS NULL AND t.slug = $2 AND t.active`,
           [name, slug],
         )
       : await db.query<UserRow & { password_hash: string }>('SELECT u.* FROM staff_user u WHERE u.username = $1 AND u.tenant_id IS NULL', [name]);
@@ -97,7 +97,7 @@ export async function userForSession(db: Queryable, clock: Clock, token: string 
   const { rows } = await db.query<UserRow>(
     `UPDATE session s SET expires_at = $3
        FROM staff_user u
-      WHERE s.id_hash = $1 AND s.expires_at > $2 AND u.id = s.staff_user_id
+      WHERE s.id_hash = $1 AND s.expires_at > $2 AND u.id = s.staff_user_id AND u.deleted_at IS NULL
       RETURNING u.id, u.email, u.role, u.display_name, u.stylist_id, u.tenant_id`,
     [sha256(token), now, new Date(now.getTime() + SESSION_TTL_MS)],
   );
