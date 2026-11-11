@@ -6,13 +6,13 @@ test.describe('calendar view', () => {
   test.skip(() => test.info().project.name !== 'desktop', 'pointer + wheel: desktop');
 
   test('Ganzer Tag fits the grid to the screen, Klassisch is the old scale; the page itself does not scroll', async ({ page }) => {
-    await page.setViewportSize({ width: 1600, height: 1000 });
+    await page.setViewportSize({ width: 1920, height: 1080 }); // Full HD: the whole 08–17 day fits at ≥ 1.2 px/min
     await login(page);
     await page.goto(`/${SLUG}/team?date=2026-11-04`);
     await expect(page.locator('.blk').first()).toBeVisible();
     const grid = page.locator('.tg-wrap');
     const fit = Number(await grid.getAttribute('data-px'));
-    expect(fit).toBeGreaterThanOrEqual(1.05);
+    expect(fit).toBeGreaterThanOrEqual(1.2);
     expect(fit).toBeLessThan(1.8);
     // whole opening day visible without scrolling, page without scrollbar
     expect(await grid.evaluate((el) => el.scrollHeight - el.clientHeight)).toBeLessThanOrEqual(2);

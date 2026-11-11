@@ -37,7 +37,7 @@ import { NewAppointmentDialog } from './NewAppointmentDialog';
 /** px per minute. "Klassisch": 5′ = 9 px, 15′ = 27 px, 60′ = 108 px (scrolls). "Ganzer Tag" fits the opening
  * hours into the visible height, but never below FIT_MIN, so a 30′ appointment keeps two readable lines (D-060). */
 const PX_CLASSIC = 1.8;
-const FIT_MIN = 1.05;
+const FIT_MIN = 1.2; // 20′ (Rentner-Schnitt) = 24 px: minimum target size (WCAG 2.2 AA)
 type Zoom = 'fit' | 'classic';
 const ZOOM_KEY = 'salon.calZoom';
 function loadZoom(): Zoom {
@@ -434,9 +434,12 @@ export function CalendarPage({ me }: { me: StaffUser }) {
         key={`${a.id}-${i}`}
         className={`blk ${(b.end - b.start) * px < 30 ? 'short tiny' : (b.end - b.start) * px < 44 ? 'short' : ''} ${i === 0 ? 'first' : i === a.blocks.length - 1 ? 'last' : 'mid'} ${i === 0 && a.blocks.length > 1 ? 'has-next' : ''} ${b.kind === 'free' ? 'free' : ''} ${statusCls} ${selected === a.id ? 'sel' : ''} ${isDragged ? 'dim' : ''}`}
         style={{ top: (b.start - open) * px, height: Math.max(14, (b.end - b.start) * px) }}
-        tabIndex={0}
-        role="button"
-        aria-pressed={selected === a.id}
+        // One keyboard/AT target per appointment: the first phase. The other phases stay clickable with
+        // the mouse but are not separate buttons (short phases would fall below the 24 px target size).
+        tabIndex={i === 0 ? 0 : undefined}
+        role={i === 0 ? 'button' : undefined}
+        aria-pressed={i === 0 ? selected === a.id : undefined}
+        aria-hidden={i === 0 ? undefined : true}
         data-appt={a.id}
         onClick={() => setSelected(a.id)}
         onKeyDown={(e) => {
