@@ -100,12 +100,12 @@ export async function setStylistPublic(q: Queryable, tenantId: string, id: strin
 }
 
 /** Public homepage: only active stylists who agreed, only their public name. */
-export async function publicTeam(q: Queryable, tenantId: string): Promise<{ publicName: string }[]> {
-  const { rows } = await q.query<{ public_name: string }>(
-    'SELECT public_name FROM stylist WHERE tenant_id = $1 AND active AND show_public ORDER BY sort_order, public_name',
+export async function publicTeam(q: Queryable, tenantId: string): Promise<{ id: string; publicName: string }[]> {
+  const { rows } = await q.query<{ id: string; public_name: string }>(
+    'SELECT id, public_name FROM stylist WHERE tenant_id = $1 AND active AND show_public AND deleted_at IS NULL ORDER BY sort_order, public_name',
     [tenantId],
   );
-  return rows.map((r) => ({ publicName: r.public_name }));
+  return rows.map((r) => ({ id: r.id, publicName: r.public_name }));
 }
 
 /**

@@ -75,7 +75,7 @@ export function ManagePage() {
         )}
         <DurationBar blocks={a.blocks} serviceId={a.serviceId} />
         {a.fee && <p className="notice warn small">{salon.feeConsentText[a.serviceId]}</p>}
-        {a.restricted && <p className="notice warn small">{t('ui.idHint')}</p>}
+        {a.restricted && <p className="notice warn small">{t('ui.under16')}</p>}
       </section>
 
       {a.status === 'confirmed' && (

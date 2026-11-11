@@ -4,6 +4,8 @@ import type { PartialMessages } from './index.js';
 export const en: PartialMessages = {
   service: {
     cut: 'Haircut',
+    cut_senior: 'Pensioner cut',
+    cut_kids: 'Kids cut',
     wash_set: 'Wash & set',
     color_root: 'Cut & colour – roots',
     color_full: 'Cut & colour – roots to ends',

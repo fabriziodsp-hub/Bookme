@@ -42,13 +42,21 @@ test.describe('client booking (no account)', () => {
     await expect(page.getByLabel('Vorname')).toBeFocused();
   });
 
-  test('minors only see haircut and wash & set', async ({ page }) => {
+  test('no age question; colour services carry the under-16 notice (D-062)', async ({ page }) => {
     await page.goto(`/${SLUG}/buchen`);
-    await page.getByRole('radio', { name: 'Minderjährig (unter 18)' }).click();
-    await expect(page.getByText(/aus gesundheitlichen Gründen nicht verfügbar/)).toBeVisible();
-    const services = page.getByRole('radiogroup', { name: 'Leistung' }).getByRole('radio');
-    await expect(services).toHaveCount(2);
-    await expect(page.getByRole('radio', { name: /Balayage/ })).toHaveCount(0);
+    await expect(page.getByRole('radio', { name: /Volljährig|Minderjährig/ })).toHaveCount(0);
+    await expect(page.getByRole('radio', { name: /^Haarschnitt/ })).toBeVisible();
+    await expect(page.getByRole('radio', { name: /^Balayage.*Nicht für Personen unter 16 Jahren/ })).toBeVisible();
+    await expect(page.getByRole('radio', { name: /^Rentner-Schnitt.*Seiten kurz, oben etwas länger/ })).toBeVisible();
+    await page.getByRole('radio', { name: /^Schnitt & Farbe – Ansatz \d/ }).click();
+    await expect(page.getByText(/nicht für Personen unter 16 Jahren bestimmt/)).toBeVisible();
+  });
+
+  test('homepage service card opens the booking with that service (D-065)', async ({ page }) => {
+    await page.goto(`/${SLUG}`);
+    await page.getByRole('link', { name: /Kinder-Schnitt/ }).click();
+    await expect(page).toHaveURL(new RegExp(`/${SLUG}/buchen\\?service=cut_kids`));
+    await expect(page.getByRole('radio', { name: /^Kinder-Schnitt/ })).toHaveAttribute('aria-checked', 'true');
   });
 
   test('Balayage: month sheet with 12 month chips, "Nächster freier Termin", fee consent required', async ({ page }) => {

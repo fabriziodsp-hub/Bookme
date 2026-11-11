@@ -221,6 +221,9 @@ textarea { min-height: 80px; resize: vertical; }
 .h-svc { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; transition: transform var(--t-slow) var(--ease), border-color var(--t-slow) var(--ease); }
 .h-svc:hover { transform: translateY(-3px); border-color: var(--ac); }
 .h-svc h3 { margin: 0 0 4px; font-size: 1.05rem; }
+.h-svc { padding: 0; }
+.h-svc-link { display: flex; flex-direction: column; height: 100%; padding: 16px; color: var(--text); text-decoration: none; border-radius: var(--radius); }
+.h-svc-cta { margin-top: auto; padding-top: 8px; color: var(--ac); font-weight: 650; }
 .h-price { margin: 8px 0 0; font-weight: 650; }
 .h-two { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
 .h-hours { margin: 0; }

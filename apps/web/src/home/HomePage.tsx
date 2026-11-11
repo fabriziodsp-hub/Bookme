@@ -4,6 +4,7 @@
  * owner's own texts; empty texts hide their section. No third-party embeds (map = plain link).
  */
 import { addDays, durationRange, parseHm, weekdayOf, WEEKDAYS, type Audience, type Service } from '@salon/engine';
+import { de } from '@salon/i18n';
 import { useEffect, useRef, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { priceFromFor } from '../lib/booking';
@@ -68,14 +69,20 @@ function ServiceCard({ s }: { s: Service }) {
   const min = Math.min(...ranges.map((r) => r.min));
   const max = Math.max(...ranges.map((r) => r.max));
   const price = priceText(priceFromFor(salon.prices, s.id));
+  const info = (de.serviceInfo as Record<string, string>)[s.id];
+  // The whole card starts the booking with this service (D-065).
   return (
     <li className="h-svc">
-      <h3>{L.service(s.id)}</h3>
-      <p className="muted small">
-        {t('home.forWhom', { who: s.audiences.map((a) => t(`audience.${a}`)).join(' & ') })} · {formatRange(min, max)}
-        {ranges.some((r) => r.hasFree) ? ` · ${t('ui.inclProcessing')}` : ''}
-      </p>
-      {price && <p className="h-price">{price}</p>}
+      <Link className="h-svc-link" to={`/${salon.slug}/buchen?service=${encodeURIComponent(s.id)}`}>
+        <h3>{L.service(s.id)}</h3>
+        {info && <p className="small" style={{ margin: '0 0 4px' }}>{info}</p>}
+        <p className="muted small">
+          {t('home.forWhom', { who: s.audiences.map((a) => t(`audience.${a}`)).join(' & ') })} · {formatRange(min, max)}
+          {ranges.some((r) => r.hasFree) ? ` · ${t('ui.inclProcessing')}` : ''}
+        </p>
+        {price && <p className="h-price">{price}</p>}
+        <span className="h-svc-cta">{t('home.bookThis')} <span aria-hidden="true">›</span></span>
+      </Link>
     </li>
   );
 }

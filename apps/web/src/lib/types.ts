@@ -38,7 +38,8 @@ export interface SalonData {
   /** Homepage texts written by the salon (D-052); empty = section hidden. */
   homepage: { tagline: string; about: string };
   /** Only stylists who agreed, only their public name (D-052). */
-  team: { publicName: string }[];
+  /** People who agreed to be shown, with their public name only (D-052); id for the wish filter (D-063). */
+  team: { id: string; publicName: string }[];
   feeConsentText: Record<string, string>;
   /** Fee per service, computed by the server from the fee rule and the price list. */
   feeAmountCents: Record<string, number>;

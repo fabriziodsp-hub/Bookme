@@ -55,7 +55,7 @@ const feeLine = (c: MessageContext) =>
   c.fee ? `\n\nHinweis: Bei Nichterscheinen oder Absage weniger als 48 Stunden vorher fällt eine Ausfallgebühr von ${euro(c.fee)} an.` : '';
 
 const idNote = (c: MessageContext) =>
-  c.restricted ? '\n\nBitte bringen Sie einen Ausweis mit: Bei Zweifeln am angegebenen Alter behalten wir uns eine Altersprüfung vor.' : '';
+  c.restricted ? '\n\nHinweis: Für diese Behandlung verwenden wir chemische Produkte (z. B. Haarfarben), die laut Hersteller nicht für Personen unter 16 Jahren bestimmt sind – sie können schwere allergische Reaktionen auslösen.' : ''; // D-062: notice instead of an ID check
 
 /** Note from the salon (accept / decline / Rücksprache), shown prominently. */
 const noteLine = (c: MessageContext) => (c.reason ? `\n\nNotiz vom Salon:\n${c.reason}` : '');

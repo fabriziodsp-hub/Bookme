@@ -34,6 +34,7 @@ export type ViolationCode =
   | 'LEAD_TIME'
   | 'BEYOND_HORIZON'
   | 'PHASE_TOO_SHORT'
+  | 'SMALL_GAP'
   | 'MALFORMED';
 
 export interface Violation {
@@ -133,6 +134,20 @@ export function checkPlacement(input: PlacementInput): Violation[] {
     if (ahead < 0 || (ahead === 0 && first < now.minute)) v.push({ code: 'IN_PAST' });
     else if (ahead === 0 && first < now.minute + cfg.leadTimeMinutes) v.push({ code: 'LEAD_TIME' });
     if (ahead > cfg.horizonDays) v.push({ code: 'BEYOND_HORIZON' });
+    // BR-17 (D-068): no unusable hole next to the request. Walls are opening/closing, breaks,
+    // absences and busy time of other appointments (their Einwirkzeit is usable, so not a wall).
+    const minGap = cfg.minClientGapMinutes;
+    if (minGap > 0 && !v.length) {
+      const last = blocks[blocks.length - 1]!.end;
+      const walls = [...hours.breaks, ...occupancy.absences, ...occupancy.busy];
+      const left = Math.max(hours.open, ...walls.filter((w) => w.end <= first).map((w) => w.end));
+      const right = Math.min(hours.close, ...walls.filter((w) => w.start >= last).map((w) => w.start));
+      const gapBefore = first - left;
+      const gapAfter = right - last;
+      // A hole that already lies in the past (today) cannot be filled anyway.
+      const leftMatters = !(ahead === 0 && left < now.minute + cfg.leadTimeMinutes);
+      if ((leftMatters && gapBefore > 0 && gapBefore < minGap) || (gapAfter > 0 && gapAfter < minGap)) v.push({ code: 'SMALL_GAP' });
+    }
   }
   return v;
 }

@@ -106,6 +106,8 @@ export function CalendarPage({ me }: { me: StaffUser }) {
   const [undoStack, setUndo] = useState<UndoItem[]>([]);
   const [redoStack, setRedo] = useState<UndoItem[]>([]);
   const [dialog, setDialog] = useState<null | 'new' | 'absence' | 'month'>(null);
+  // Click on an empty spot of a column = new appointment there (D-067); the button stays as keyboard path.
+  const [newAt, setNewAt] = useState<{ date: LocalDate; stylistId: string; start: number } | null>(null);
   const [absenceSel, setAbsenceSel] = useState<Absence | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const rootRef = useRef<HTMLElement>(null);
@@ -213,7 +215,7 @@ export function CalendarPage({ me }: { me: StaffUser }) {
       const v = checkPlacement({ config: cfg, date: d, blocks, occupancy: occupancy(stylistId, d, a.id), mode: 'staff', service: findService(cfg, a.serviceId) });
       const reason: Record<string, string> = {
         IN_BREAK: 'in der Pause', OUTSIDE_HOURS: 'außerhalb der Öffnungszeiten', CLOSED: 'geschlossen',
-        OVERLAPS_BUSY: 'Zeit belegt', IN_ABSENCE: 'Abwesenheit', PHASE_TOO_SHORT: 'Phase zu kurz', OFF_GRID: 'nicht im 5-Min.-Raster',
+        OVERLAPS_BUSY: 'Zeit belegt', IN_ABSENCE: 'Abwesenheit', PHASE_TOO_SHORT: 'Phase zu kurz', SMALL_GAP: 'zu kleine Lücke', OFF_GRID: 'nicht im 5-Min.-Raster',
       };
       return { ok: v.length === 0, reason: [...new Set(v.map((x) => reason[x.code] ?? x.code))].join(', ') };
     },
@@ -430,7 +432,7 @@ export function CalendarPage({ me }: { me: StaffUser }) {
     return a.blocks.map((b, i) => (
       <div
         key={`${a.id}-${i}`}
-        className={`blk ${(b.end - b.start) * px < 44 ? 'short' : ''} ${i === 0 ? 'first' : i === a.blocks.length - 1 ? 'last' : 'mid'} ${i === 0 && a.blocks.length > 1 ? 'has-next' : ''} ${b.kind === 'free' ? 'free' : ''} ${statusCls} ${selected === a.id ? 'sel' : ''} ${isDragged ? 'dim' : ''}`}
+        className={`blk ${(b.end - b.start) * px < 30 ? 'short tiny' : (b.end - b.start) * px < 44 ? 'short' : ''} ${i === 0 ? 'first' : i === a.blocks.length - 1 ? 'last' : 'mid'} ${i === 0 && a.blocks.length > 1 ? 'has-next' : ''} ${b.kind === 'free' ? 'free' : ''} ${statusCls} ${selected === a.id ? 'sel' : ''} ${isDragged ? 'dim' : ''}`}
         style={{ top: (b.start - open) * px, height: Math.max(14, (b.end - b.start) * px) }}
         tabIndex={0}
         role="button"
@@ -453,7 +455,7 @@ export function CalendarPage({ me }: { me: StaffUser }) {
             <span className="tm">{formatHm(a.start)}–{formatHm(a.end)}</span>{' '}
           </>
         )}
-        <span>
+        <span className="ph">
           {L.phase(b.phase, a.serviceId)} ({b.end - b.start}′){i === a.blocks.length - 1 ? ` · ${t('staff.end', { time: formatHm(a.end) })}` : ''}
         </span>
         <span className="sr-only">
@@ -565,6 +567,14 @@ export function CalendarPage({ me }: { me: StaffUser }) {
                 className={`tg-col ${drag?.col.key === c.key && drag.mode === 'move' && !drag.dropDay ? 'drop-target' : ''}`}
                 data-col={c.key}
                 style={{ height, ['--h60' as string]: `${60 * px}px`, ['--h15' as string]: `${15 * px}px`, ['--h5' as string]: `${5 * px}px` }}
+                onClick={(e) => {
+                  if (e.target !== e.currentTarget || !h) return; // blocks, breaks, closed time: not here
+                  const y = e.clientY - e.currentTarget.getBoundingClientRect().top;
+                  const start = Math.floor((open + y / px) / 15) * 15; // 15′ steps: easy to hit, editable in the dialog
+                  if (start < h.open || start >= h.close) return;
+                  setNewAt({ date: c.date, stylistId: c.stylistId, start });
+                  setDialog('new');
+                }}
               >
                 {!h ? (
                   <div className="tg-off" style={{ top: 0, bottom: 0 }}>{t('ui.closed')}</div>
@@ -609,7 +619,15 @@ export function CalendarPage({ me }: { me: StaffUser }) {
           setStatus={setStatus}
         />
       )}
-      {dialog === 'new' && <NewAppointmentDialog date={date} stylistId={mineId ?? columns[0]?.stylistId ?? ''} onClose={() => setDialog(null)} onCreated={(a) => (invalidate(), setDate(a.date), setSelected(a.id))} />}
+      {dialog === 'new' && (
+        <NewAppointmentDialog
+          date={newAt?.date ?? date}
+          stylistId={newAt?.stylistId ?? mineId ?? columns[0]?.stylistId ?? ''}
+          start={newAt?.start}
+          onClose={() => (setDialog(null), setNewAt(null))}
+          onCreated={(a) => (invalidate(), setDate(a.date), setSelected(a.id))}
+        />
+      )}
       {(dialog === 'absence' || absenceSel) && (
         <AbsenceDialog
           date={date}

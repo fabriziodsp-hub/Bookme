@@ -101,7 +101,7 @@ export function publicRoutes(deps: Deps, opts: { trustProxy: boolean; limitScale
             hasLogo: z.boolean(),
             prices: z.array(z.any()),
             homepage: z.object({ tagline: z.string(), about: z.string() }),
-            team: z.array(z.object({ publicName: z.string() })),
+            team: z.array(z.object({ id: z.string(), publicName: z.string() })),
             feeConsentText: z.record(z.string(), z.string()),
             feeAmountCents: z.record(z.string(), z.number().int()),
             now: z.object({ date: LocalDate, minute: Minute }),
@@ -191,13 +191,13 @@ export function publicRoutes(deps: Deps, opts: { trustProxy: boolean; limitScale
       path: '/{slug}/availability/days',
       tags: ['public'],
       summary: 'Dates with at least one free slot (month picker dots)',
-      request: { params: SlugParam, query: SelectionQuery.extend({ from: LocalDate, days: z.coerce.number().int().min(1).max(42).default(42) }) },
+      request: { params: SlugParam, query: SelectionQuery.extend({ from: LocalDate, days: z.coerce.number().int().min(1).max(42).default(42), stylistId: z.string().uuid().optional() }) },
       responses: { 200: json(z.object({ dates: z.array(LocalDate) }), 'Dates'), ...errorResponses },
     }),
     async (c) => {
       const ctx = c.get('ctx');
       const q = c.req.valid('query');
-      return c.json({ dates: await daysWithSlots(ctx.db, ctx, selectionFrom(q), q.from, q.days) }, 200);
+      return c.json({ dates: await daysWithSlots(ctx.db, ctx, selectionFrom(q), q.from, q.days, q.stylistId) }, 200);
     },
   );
 
@@ -207,13 +207,13 @@ export function publicRoutes(deps: Deps, opts: { trustProxy: boolean; limitScale
       path: '/{slug}/availability/next',
       tags: ['public'],
       summary: 'Next free slot ("Nächster freier Termin")',
-      request: { params: SlugParam, query: SelectionQuery.extend({ from: LocalDate }) },
+      request: { params: SlugParam, query: SelectionQuery.extend({ from: LocalDate, stylistId: z.string().uuid().optional() }) },
       responses: { 200: json(z.object({ next: z.object({ date: LocalDate, start: Minute }).nullable() }), 'Next slot'), ...errorResponses },
     }),
     async (c) => {
       const ctx = c.get('ctx');
       const q = c.req.valid('query');
-      return c.json({ next: await nextFree(ctx.db, ctx, selectionFrom(q), q.from) }, 200);
+      return c.json({ next: await nextFree(ctx.db, ctx, selectionFrom(q), q.from, q.stylistId) }, 200);
     },
   );
 

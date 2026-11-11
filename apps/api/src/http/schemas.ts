@@ -29,7 +29,8 @@ export const SelectionSchema = z
   .object({
     serviceId: z.string().min(1).max(40),
     audience: z.enum(['women', 'men']),
-    adult: z.boolean(),
+    /** No longer asked (D-062); kept for older clients, always treated as true. */
+    adult: z.boolean().default(true),
     variant: z.string().max(40).optional(),
     finish: z.boolean().optional(),
   })
@@ -39,7 +40,7 @@ export const SelectionSchema = z
 export const SelectionQuery = z.object({
   serviceId: z.string().min(1).max(40),
   audience: z.enum(['women', 'men']),
-  adult: z.enum(['true', 'false']).transform((v) => v === 'true'),
+  adult: z.enum(['true', 'false']).default('true').transform((v) => v === 'true'),
   variant: z.string().max(40).optional(),
   finish: z
     .enum(['true', 'false'])
@@ -74,7 +75,7 @@ export const CustomerInputSchema = z
     lastName: z.string().trim().min(1).max(60),
     phone: z.string().trim().max(30).optional(),
     email: z.string().trim().max(254).optional(),
-    /** Birthday discount opt-in (adults only): birth month 1–12. Omit = no consent. */
+    /** Birthday discount opt-in (client confirms being at least 16, D-062): birth month 1–12. Omit = no consent. */
     birthMonth: z.number().int().min(1).max(12).optional(),
   })
   .openapi('CustomerInput');

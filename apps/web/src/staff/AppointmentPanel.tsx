@@ -88,7 +88,6 @@ export function AppointmentPanel(p: {
       <div className="row small" style={{ marginBottom: 8 }}>
         <span className={`badge ${a.status === 'confirmed' ? 'ac' : a.status === 'requested' || a.status === 'discuss' ? 'warn' : ''}`}>{t(`ui.status.${a.status}`)}</span>
         {a.customer.noShowCount > 0 && <span className="badge danger">{t('staff.noShows', { n: a.customer.noShowCount })}</span>}
-        {!a.adultDeclared && <span className="badge">minderjährig</span>}
         {a.expiresAt && a.status === 'requested' && <span className="badge">{t('staff.expires', { time: new Date(a.expiresAt).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' }) })}</span>}
       </div>
       <div className="row small">
@@ -184,19 +183,6 @@ export function AppointmentPanel(p: {
               <button type="button" className="btn" onClick={() => call(async () => api(`/staff/appointments/${a.id}/fee`, { method: 'POST', body: { version: (await fresh()).version, status: 'waived' } }))}>{t('staff.waive')}</button>
             </div>
           )}
-        </section>
-      )}
-
-      {a.ageCheck.status !== 'not_required' && (
-        <section style={{ marginTop: 12 }}>
-          <h3>{t('staff.ageCheck')}: <span className="badge">{t(`ageCheck.${a.ageCheck.status}`)}</span></h3>
-          <div className="row">
-            {(['request', 'verified', 'not_verified', 'not_presented'] as const).map((act) => (
-              <button key={act} type="button" className="btn" onClick={() => call(async () => api(`/staff/appointments/${a.id}/age-check`, { method: 'POST', body: { version: (await fresh()).version, action: act } }))}>
-                {t({ request: 'staff.ageRequest', verified: 'staff.ageVerified', not_verified: 'staff.ageNotVerified', not_presented: 'staff.ageNotPresented' }[act])}
-              </button>
-            ))}
-          </div>
         </section>
       )}
 

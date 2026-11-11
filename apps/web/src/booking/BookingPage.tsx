@@ -1,4 +1,5 @@
 import { addDays, daysBetween, findService, formatHm, offeredServices, startOfWeek, type LocalDate, type Minute, type Selection } from '@salon/engine';
+import { de } from '@salon/i18n';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import { DurationBar } from '../components/DurationBar';
@@ -24,9 +25,16 @@ export function BookingPage() {
   const today = salon.now.date;
   const qc = useQueryClient();
 
-  const [audience, setAudience] = useState<Audience>('women');
-  const [adult, setAdult] = useState<boolean | null>(null);
-  const [serviceId, setServiceId] = useState<string | null>(null);
+  // Deep link from the homepage (D-065): /buchen?service=…&audience=… preselects the service.
+  const params = new URLSearchParams(location.search);
+  const linked = findService(cfg, params.get('service') ?? '');
+  const linkedAudience = params.get('audience');
+  const [audience, setAudience] = useState<Audience>(
+    linkedAudience === 'men' || linkedAudience === 'women' ? linkedAudience : linked && !linked.audiences.includes('women') ? 'men' : 'women',
+  );
+  const [serviceId, setServiceId] = useState<string | null>(linked && !linked.hidden && linked.audiences.includes(audience) ? linked.id : null);
+  // Optional wish for a person (D-063): only people shown on the homepage, "" = anyone.
+  const [stylistId, setStylistId] = useState('');
   const [variant, setVariant] = useState<string | undefined>();
   const [finish, setFinish] = useState(false);
   const [weekStart, setWeekStart] = useState(startOfWeek(today));
@@ -39,10 +47,14 @@ export function BookingPage() {
   const calRef = useRef<HTMLDivElement>(null);
 
   const service = serviceId ? findService(cfg, serviceId) : undefined;
-  const sel: Selection | null =
-    service && adult !== null ? { serviceId: service.id, audience, adult, variant: service.variants ? (variant ?? service.defaultVariant) : undefined, finish: service.finishOption ? finish : undefined } : null;
+  // No age question any more (D-062): every service is offered; chemical ones show the under-16 notice.
+  const sel: Selection | null = service
+    ? { serviceId: service.id, audience, adult: true, variant: service.variants ? (variant ?? service.defaultVariant) : undefined, finish: service.finishOption ? finish : undefined }
+    : null;
   const blocks = sel ? blocksFor(cfg, sel) : null;
-  const services = adult === null ? [] : offeredServices(cfg, audience, adult);
+  const services = offeredServices(cfg, audience, true);
+  const team = salon.team ?? [];
+  const who = stylistId ? `&stylistId=${stylistId}` : '';
   const maxWeek = startOfWeek(addDays(today, cfg.horizonDays));
 
   // Reset dependent steps when an earlier one changes (prototype behaviour, spec C-1 AC2).
@@ -56,8 +68,8 @@ export function BookingPage() {
   };
 
   const avail = useQuery({
-    queryKey: ['avail', salon.slug, sel && selectionQuery(sel), weekStart],
-    queryFn: () => api<{ days: DayAvailability[] }>(`/s/${salon.slug}/availability?${selectionQuery(sel!)}&from=${weekStart}&days=7`),
+    queryKey: ['avail', salon.slug, sel && selectionQuery(sel), weekStart, stylistId],
+    queryFn: () => api<{ days: DayAvailability[] }>(`/s/${salon.slug}/availability?${selectionQuery(sel!)}&from=${weekStart}&days=7${who}`),
     enabled: !!sel,
     placeholderData: (prev) => prev,
   });
@@ -83,7 +95,7 @@ export function BookingPage() {
 
   const nextFree = async () => {
     if (!sel) return;
-    const r = await api<{ next: { date: LocalDate; start: Minute } | null }>(`/s/${salon.slug}/availability/next?${selectionQuery(sel)}&from=${today}`);
+    const r = await api<{ next: { date: LocalDate; start: Minute } | null }>(`/s/${salon.slug}/availability/next?${selectionQuery(sel)}&from=${today}${who}`);
     if (r.next) goToDate(r.next.date);
     else setNotice(t('ui.noneFound'));
     setMonthOpen(false);
@@ -96,9 +108,10 @@ export function BookingPage() {
         headers: { 'idempotency-key': idempotencyKey },
         body: {
           selection: sel,
+          stylistId: stylistId || undefined,
           date: slot!.date,
           start: formatHm(slot!.start),
-          customer: { firstName: d.firstName, lastName: d.lastName, phone: d.phone || undefined, email: d.email || undefined, birthMonth: d.birthday && adult ? d.birthMonth : undefined },
+          customer: { firstName: d.firstName, lastName: d.lastName, phone: d.phone || undefined, email: d.email || undefined, birthMonth: d.birthday ? d.birthMonth : undefined },
           colorNotes: d.colorNotes || undefined,
           feeConsent: service?.feeRule ? d.feeConsent : undefined,
           privacyAck: d.privacyAck,
@@ -150,30 +163,9 @@ export function BookingPage() {
             </button>
           ))}
         </div>
-        <div className="chips" role="radiogroup" aria-label="Alter" style={{ marginTop: 8 }}>
-          <button type="button" role="radio" className="chip" aria-checked={adult === true} onClick={() => (setAdult(true), resetFrom('option'))}>
-            {t('ui.adult')}
-          </button>
-          <button
-            type="button"
-            role="radio"
-            className="chip"
-            aria-checked={adult === false}
-            onClick={() => {
-              setAdult(false);
-              if (service?.adultOnly) resetFrom('service');
-              else resetFrom('option');
-            }}
-          >
-            {t('ui.minor')}
-          </button>
-        </div>
-        {adult === false && <p className="notice warn small" role="note">{t('ui.minorHint')}</p>}
       </section>
 
-      {adult === null ? (
-        <p className="muted">{t('ui.askAgeFirst')}</p>
-      ) : (
+      {(
         <section className="card" aria-labelledby="st2">
           <h2 id="st2"><span className="stepno">2</span>{t('ui.step.service')}</h2>
           <div role="radiogroup" aria-labelledby="st2">
@@ -183,8 +175,10 @@ export function BookingPage() {
                 <button key={s.id} type="button" role="radio" className="svc" aria-checked={serviceId === s.id} onClick={() => (setServiceId(s.id), setVariant(undefined), setFinish(false), setSlot(null))}>
                   <span>{L.service(s.id)}</span>
                   <small>
+                    {(de.serviceInfo as Record<string, string>)[s.id] && <>{(de.serviceInfo as Record<string, string>)[s.id]}<br /></>}
                     {L.hint(s, audience)}
                     {p && <><br />{priceText(p)}</>}
+                    {s.adultOnly && <><br />{t('ui.under16Short')}</>}
                   </small>
                 </button>
               );
@@ -199,7 +193,7 @@ export function BookingPage() {
           {service.variants && (
             <div className="chips" role="radiogroup" aria-labelledby="st3">
               {service.variants.map((v) => {
-                const b = blocksFor(cfg, { serviceId: service.id, audience, adult: !!adult, variant: v })!;
+                const b = blocksFor(cfg, { serviceId: service.id, audience, adult: true, variant: v })!;
                 return (
                   <button key={v} type="button" role="radio" className="chip" aria-checked={(variant ?? service.defaultVariant) === v} onClick={() => (setVariant(v), setSlot(null))}>
                     {L.variant(v)} · {b.at(-1)!.end}′
@@ -229,12 +223,24 @@ export function BookingPage() {
           <DurationBar blocks={blocks} serviceId={serviceId ?? undefined} />
           {blocks.some((b) => b.kind === 'free') && <p className="muted small">{t('ui.freeHint')}</p>}
           {service?.fixedStarts && <p className="muted small">{t('ui.fixedStartsHint')}</p>}
+          {service?.adultOnly && <p className="notice warn small" role="note">{t('ui.under16')}</p>}
         </section>
       )}
 
       <section className="card" aria-labelledby="st4" ref={calRef}>
         <h2 id="st4"><span className="stepno">4</span>{t('ui.step.when')}</h2>
         {!sel && <p className="muted small">{t('ui.chooseService')}</p>}
+        {team.length > 0 && (
+          <div className="field">
+            <p className="small muted" id="st4-who" style={{ margin: '0 0 4px' }}>{t('ui.stylistWish')}</p>
+            <div className="chips" role="radiogroup" aria-labelledby="st4-who">
+              <button type="button" role="radio" className="chip" aria-checked={stylistId === ''} onClick={() => (setStylistId(''), setSlot(null))}>{t('ui.anyStylist')}</button>
+              {team.map((m) => (
+                <button key={m.id} type="button" role="radio" className="chip" aria-checked={stylistId === m.id} onClick={() => (setStylistId(m.id), setSlot(null))}>{m.publicName}</button>
+              ))}
+            </div>
+          </div>
+        )}
         <WeekCalendar
           cfg={cfg}
           weekStart={weekStart}
@@ -262,7 +268,7 @@ export function BookingPage() {
           maxOffset={12}
           initial={weekStart}
           selected={slot?.date ?? null}
-          dotsPath={sel ? (from) => `/s/${salon.slug}/availability/days?${selectionQuery(sel)}&from=${from}&days=42` : null}
+          dotsPath={sel ? (from) => `/s/${salon.slug}/availability/days?${selectionQuery(sel)}&from=${from}&days=42${who}` : null}
           isSelectable={(d) => d >= today && daysBetween(today, d) <= cfg.horizonDays}
           onPick={goToDate}
           onToday={() => goToDate(today)}

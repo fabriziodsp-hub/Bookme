@@ -183,7 +183,9 @@ export function staffRoutes(deps: Deps) {
           date: LocalDate,
           start: Minute,
           stylistId: z.string().uuid(),
-          customer: CustomerInputSchema,
+          /** An existing client card (D-064) – or `customer` for a new / matched client. */
+          customerId: z.string().uuid().optional(),
+          customer: CustomerInputSchema.optional(),
           colorNotes: z.string().max(500).optional(),
           internalNote: z.string().max(2000).optional(),
           notifyCustomer: z.boolean().default(true),
@@ -193,7 +195,9 @@ export function staffRoutes(deps: Deps) {
     }),
     async (c) => {
       const b = c.req.valid('json');
-      const r = await createAppointment(c.get('ctx'), { ...b, source: 'staff', actor: actorOf(c) });
+      if (!b.customerId && !b.customer) throw Errors.validation({ customer: 'Bitte eine Kundin / einen Kunden wählen oder anlegen.' });
+      const customer = b.customer ?? { firstName: '-', lastName: '-' }; // ignored when customerId is set
+      const r = await createAppointment(c.get('ctx'), { ...b, customer, source: 'staff', actor: actorOf(c) });
       return c.json(r.appointment, 201);
     },
   );
