@@ -81,6 +81,8 @@ export async function seedDemo(deps: Deps, opts: SeedOptions) {
     await setPrices(ctx, [
       { serviceId: 'cut', variant: 'dry', priceCents: 2800, isFrom: false, finishSurchargeCents: null },
       { serviceId: 'cut', variant: 'wash', priceCents: 3800, isFrom: true, finishSurchargeCents: null },
+      { serviceId: 'cut_senior', variant: '', priceCents: 2000, isFrom: false, finishSurchargeCents: null },
+      { serviceId: 'cut_kids', variant: '', priceCents: 2500, isFrom: false, finishSurchargeCents: null },
       { serviceId: 'wash_set', variant: '', priceCents: 3200, isFrom: false, finishSurchargeCents: null },
       { serviceId: 'color_root', variant: '', priceCents: 6900, isFrom: true, finishSurchargeCents: 1500 },
       { serviceId: 'color_full', variant: '', priceCents: 8900, isFrom: true, finishSurchargeCents: 1500 },

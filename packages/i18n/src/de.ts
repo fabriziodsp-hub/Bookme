@@ -2,6 +2,8 @@
 export const de = {
   service: {
     cut: 'Haarschnitt',
+    cut_senior: 'Rentner-Schnitt',
+    cut_kids: 'Kinder-Schnitt',
     wash_set: 'Waschen & Legen',
     color_root: 'Schnitt & Farbe – Ansatz',
     color_full: 'Schnitt & Farbe – Ansatz bis Spitzen',
@@ -9,8 +11,15 @@ export const de = {
     balayage: 'Balayage',
     perm: 'Dauerwelle (Locken)',
   },
+  /** Short description on the homepage and in the booking list (optional per service, D-066). */
+  serviceInfo: {
+    cut_senior: 'Einfacher Schnitt ohne aufwendiges Styling: Seiten kurz, oben etwas länger. Für Rentnerinnen und Rentner.',
+    cut_kids: 'Haarschnitt für Kinder.',
+  },
   serviceHint: {
     cut: '30 Min. (Damen mit Waschen & Föhnen 45 Min.)',
+    cut_senior: '20 Min.',
+    cut_kids: '30 Min.',
     wash_set: '30 Min.',
     color_root: '45 Min. + Einwirkzeit + Styling',
     color_full: '60 Min. + Einwirkzeit + Styling',
@@ -126,8 +135,12 @@ export const de = {
     contactHint: 'Mindestens Telefon oder E-Mail. Per E-Mail erhalten Sie die Bestätigung und den Link zum Verschieben oder Absagen.',
     colorNotes: 'Hinweise für die Zeitplanung (optional)',
     colorNotesHint: 'Haarlänge, aktuelle Farbe, Vorbehandlungen',
+    under16: 'Hinweis zum Schutz von Jugendlichen: Für diese Behandlung verwenden wir chemische Produkte (z. B. Haarfarben), die laut Hersteller nicht für Personen unter 16 Jahren bestimmt sind. Sie können schwere allergische Reaktionen auslösen. Bitte buchen Sie diese Behandlung nicht für Jugendliche unter 16 Jahren.',
+    under16Short: 'Nicht für Personen unter 16 Jahren',
+    stylistWish: 'Bei wem? (optional)',
+    anyStylist: 'Egal',
     idHint: 'Bitte Ausweis mitbringen: Bei Zweifeln am angegebenen Alter behalten wir uns eine Altersprüfung vor. Ohne Nachweis kann die Behandlung nicht durchgeführt werden.',
-    birthday: 'Ich möchte im Geburtstagsmonat {p} % Rabatt auf einen Termin erhalten (eine E-Mail pro Jahr, jederzeit abbestellbar).',
+    birthday: 'Ich bin mindestens 16 Jahre alt und möchte im Geburtstagsmonat {p} % Rabatt auf einen Termin erhalten (eine E-Mail pro Jahr, jederzeit abbestellbar).',
     birthMonth: 'Geburtsmonat',
     feeTitle: 'Ausfallgebühr',
     submit: 'Termin anfragen',
@@ -207,6 +220,7 @@ export const de = {
     ctaTitle: 'Bereit für Ihren Termin?',
     ctaText: 'Wählen Sie Leistung und Uhrzeit – in wenigen Minuten erledigt, ohne Konto.',
     forWhom: 'für {who}',
+    bookThis: 'Termin buchen',
   },
   staff: {
     area: 'Team',
@@ -318,6 +332,16 @@ export const de = {
       confirm: 'Endgültig löschen',
       done: 'Profil von {name} gelöscht.',
       doneReassign: 'Profil von {name} gelöscht. {n} kommende Termine warten jetzt unter „Anfragen“ auf eine neue Person.',
+    },
+    na: {
+      search: 'Kundin / Kunde suchen (Name, Telefon, E-Mail)',
+      hint: 'Mindestens 2 Zeichen – oder „+“ für eine neue Kundenkarte.',
+      results: 'Gefundene Kundinnen und Kunden',
+      none: 'Keine Treffer. Mit „+“ neu anlegen.',
+      newClient: 'Neue Kundin / neuer Kunde',
+      change: 'Ändern',
+      backToSearch: 'Doch suchen',
+      pickFirst: 'Bitte zuerst eine Kundin / einen Kunden wählen oder mit „+“ anlegen.',
     },
     cal: {
       zoom: 'Zoom',
@@ -436,7 +460,7 @@ export const de = {
       intro: 'Bestehende Termine behalten ihre Dauer. Änderungen gelten für neue Buchungen.',
       name: 'Name',
       audiences: 'Für',
-      adultOnly: 'Nur ab 18 Jahren',
+      adultOnly: 'Chemische Produkte (Hinweis: nicht unter 16 Jahren)',
       hidden: 'Ausgeblendet (nicht buchbar)',
       hiddenBadge: 'ausgeblendet',
       steps: 'Ablauf und Dauer in Minuten',

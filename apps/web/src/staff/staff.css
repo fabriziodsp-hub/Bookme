@@ -214,3 +214,12 @@ main.cal-full .fab-m { bottom: calc(16px + env(safe-area-inset-bottom)); }
 main.cal-full .strip button { min-height: 44px; padding: 2px; line-height: 1.08; font-size: 0.72rem; }
 main.cal-full .strip b { font-size: 0.9rem; }
 main.cal-full .toolbar { margin-bottom: 6px; }
+/* empty calendar space: click = new appointment there (D-067) */
+.tg-col { cursor: cell; }
+.na-results { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; max-height: 260px; overflow: auto; }
+/* very short blocks (e.g. 20′ in "Ganzer Tag"): one line "Name 08:00–08:20", no half-cut second line */
+.blk.tiny { white-space: nowrap; display: flex; align-items: center; gap: 6px; padding-top: 0; padding-bottom: 0; }
+.blk.tiny .t { display: inline; flex: 0 1 auto; min-width: 0; }
+.blk.tiny .tm { flex: none; }
+.blk.tiny .ph, .blk.tiny .nt { display: none; }
+.blk.tiny:not(.first) .ph { display: inline; overflow: hidden; text-overflow: ellipsis; }

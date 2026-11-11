@@ -180,18 +180,15 @@ describe('birthday discount (D-021)', () => {
   });
 });
 
-describe('age check (outcome only)', () => {
-  it('request sends a short message; outcomes are stored without document data', async () => {
+describe('no age check any more (D-062)', () => {
+  it('colour services need no ID check; the database still holds no document data', async () => {
     const { create, api, tenantId } = await staffSetup();
-    const a = (await create({ selection: { serviceId: 'color_root', audience: 'women', adult: true } })).json;
-    expect(a.ageCheck.status).toBe('open');
-    const r = await api('POST', `/appointments/${a.id}/age-check`, { version: a.version, action: 'request' });
-    expect(r.json.ageCheck.status).toBe('requested');
-    expect((await outbox(tenantId)).find((m) => m.template === 'age_check')!.body).toContain('amtlichen Ausweis');
-    const v = await api('POST', `/appointments/${a.id}/age-check`, { version: r.json.version, action: 'verified' });
-    expect(v.json.ageCheck.status).toBe('verified');
-    const cut = (await create({ start: 690 })).json;
-    expect((await api('POST', `/appointments/${cut.id}/age-check`, { version: cut.version, action: 'request' })).status).toBe(409);
+    const a = (await create({ selection: { serviceId: 'color_root', audience: 'women' } })).json; // adult omitted → default
+    expect(a.ageCheck.status).toBe('not_required');
+    expect((await api('POST', `/appointments/${a.id}/age-check`, { version: a.version, action: 'request' })).status).toBe(409);
+    const mail = (await outbox(tenantId)).find((m) => m.template === 'confirmation')!;
+    expect(mail.body).toContain('nicht für Personen unter 16 Jahren bestimmt');
+    expect(mail.body).not.toContain('Ausweis');
     const cols = await db().query("SELECT column_name FROM information_schema.columns WHERE table_name = 'appointment' AND column_name ~ '(document|birth_date|date_of_birth|id_number)'");
     expect(cols.rows).toHaveLength(0);
   });

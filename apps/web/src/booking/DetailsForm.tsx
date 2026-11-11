@@ -53,7 +53,7 @@ export function DetailsForm(p: {
 
   const set = <K extends keyof Details>(k: K, v: Details[K]) => setD((x) => ({ ...x, [k]: v }));
   const end = p.slot.start + (p.blocks.at(-1)!.end - p.blocks[0]!.start);
-  const birthdayOn = salon.config.birthdayDiscount.enabled && p.sel.adult;
+  const birthdayOn = salon.config.birthdayDiscount.enabled;
   const fee = p.service.feeRule;
 
   function validate(): Record<string, string> {
@@ -147,7 +147,7 @@ export function DetailsForm(p: {
           <textarea id={`${id}-notes`} maxLength={500} placeholder={t('ui.colorNotesHint')} value={d.colorNotes} onChange={(e) => set('colorNotes', e.target.value)} />
         </div>
       )}
-      {p.service.adultOnly && <p className="notice warn small">{t('ui.idHint')}</p>}
+      {p.service.adultOnly && <p className="notice warn small">{t('ui.under16')}</p>}
 
       {fee && (
         <div className="notice warn">

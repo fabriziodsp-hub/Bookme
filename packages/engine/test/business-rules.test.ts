@@ -154,8 +154,8 @@ describe('BR-05 Balayage: 4 h, only 08:00 or 13:00, Saturday only morning', () =
 
 describe('BR-06 minors', () => {
   it('only cut and Waschen & Legen are offered to minors', () => {
-    expect(offeredServices(cfg, 'women', false).map((s) => s.id)).toEqual(['cut', 'wash_set']);
-    expect(offeredServices(cfg, 'men', false).map((s) => s.id)).toEqual(['cut']);
+    expect(offeredServices(cfg, 'women', false).map((s) => s.id)).toEqual(['cut', 'wash_set', 'cut_senior', 'cut_kids']);
+    expect(offeredServices(cfg, 'men', false).map((s) => s.id)).toEqual(['cut', 'cut_senior', 'cut_kids']);
   });
   it.each(['color_root', 'color_full', 'highlights', 'balayage', 'perm'])('%s rejected for minors', (id) => {
     expect(checkSelection(cfg, sel(id, { adult: false }))).toBe('AGE_RESTRICTED');
@@ -228,5 +228,32 @@ describe('structural checks', () => {
     expect(checkSelection(cfg, sel('nope'))).toBe('UNKNOWN_SERVICE');
     expect(checkSelection(cfg, sel('cut', { variant: 'xx' }))).toBe('INVALID_VARIANT');
     expect(starts(MON, sel('nope'))).toEqual([]);
+  });
+});
+
+describe('BR-17 no unusable gaps for client requests (D-068)', () => {
+  const cut30 = sel('cut', { variant: 'dry' }); // 30′
+  const senior = sel('cut_senior'); // 20′
+  const TUE = '2026-11-03';
+  const place = (mode: 'client' | 'staff', start: number, config = cfg) =>
+    checkPlacement({ config, date: TUE, blocks: blocksOf(senior, start), occupancy: EMPTY_DAY, mode, now: NOW, service: findService(cfg, 'cut_senior')! }).map((x) => x.code);
+
+  it('rejects a request that leaves a 10′ hole after another appointment; 0′ and ≥ 15′ are fine', () => {
+    const occ: DayOccupancy = { busy: [{ start: 600, end: 620 }], absences: [] }; // 10:00–10:20 placed by staff
+    const s = starts(TUE, cut30, occ);
+    expect(s).not.toContain('10:30'); // 10′ hole after 10:20
+    expect(s).toContain('10:45'); // 25′ – usable
+    expect(s).toContain('09:30'); // ends exactly at 10:00
+    expect(s).toContain('09:15'); // leaves 09:45–10:00 = 15′: still usable
+  });
+
+  it('rejects a request ending 10′ before the lunch break; staff may still place it there', () => {
+    expect(place('client', 690)).toContain('SMALL_GAP'); // 11:30–11:50, break at 12:00
+    expect(place('client', 675)).toEqual([]); // 11:15–11:35 leaves 25′ before the break
+    expect(place('staff', 690)).toEqual([]);
+  });
+
+  it('can be switched off (0)', () => {
+    expect(place('client', 690, { ...cfg, minClientGapMinutes: 0 })).toEqual([]);
   });
 });

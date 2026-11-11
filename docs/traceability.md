@@ -14,7 +14,7 @@ Test locations: `packages/engine/test` (unit + property, Vitest/fast-check), `ap
 | Einwirkzeit: stylist free for other clients | BR-04; API `concurrency.test.ts` › free blocks may overlap busy blocks |
 | Balayage 4 h, only 08:00/13:00, Saturday only morning | BR-05; e2e `client.spec.ts` › Balayage |
 | Dauerwelle 120′ consecutive, no free time | BR-03 › Dauerwelle |
-| No colour/Strähnen/Balayage/Dauerwelle for minors; age asked first | BR-06; property P3; API `booking-flow.test.ts` › validation; e2e › minors only see haircut and wash & set |
+| ~~No colour/Strähnen/Balayage/Dauerwelle for minors; age asked first~~ replaced by D-062: no age question, under-16 notice on chemical services (engine rule BR-06 kept for API clients that still send `adult: false`) | BR-06; API `staff.test.ts` › no age check any more; `booking-extras.test.ts` › selection without adult; e2e `client.spec.ts` › no age question… |
 | Age check with ID, outcome recorded, no document data | API `staff.test.ts` › age check |
 | Required data: first/last name, phone or e-mail | API › validation; e2e › list view, validation errors and focus |
 | Client slots every 15′, staff edits 5′ | BR-07; e2e › drag & drop snaps |
@@ -35,7 +35,7 @@ Test locations: `packages/engine/test` (unit + property, Vitest/fast-check), `ap
 | A-07 retention, open fee claims kept until time-barred | API `staff.test.ts` › retention anonymises after 12 months; › keeps clients with an open fee claim |
 | A-10 free slots outlined | e2e `visual.spec.ts` › client week calendar |
 | D-019 multi-salon, tenant isolation | API `tenancy-security.test.ts` › tenant isolation (4 tests) |
-| D-021 birthday discount (opt-in, month only, once per year, adults) | engine BR-12; API › birthday discount |
+| D-021 birthday discount (opt-in, month only, once per year; since D-062 the opt-in text asks for "at least 16") | engine BR-12; API › birthday discount |
 | D-022 themes + visitor settings | web `palette.test.ts` (48 combinations, WCAG AA); e2e › "Ansicht"; axe in light/dark/contrast |
 | D-023 logo splash ≤ 2 s; logo upload only by platform admin | e2e › splash; API › platform admin… unsafe SVG rejected |
 | D-024 add to calendar | API › .ics only once confirmed; e2e › manage page |
@@ -58,6 +58,12 @@ Test locations: `packages/engine/test` (unit + property, Vitest/fast-check), `ap
 | D-059 Ansicht in the settings; note saving in the calendar panel | e2e `account.spec.ts` › Ansicht is also a settings category; › calendar panel: the note… |
 | D-060 calendar fits the screen, Ganzer Tag / Klassisch, full screen, wheel | e2e `calendar-view.spec.ts` (fit without page scroll, remembered view, wheel day by day, full screen); `staff.spec.ts` drag tests read the scale from `data-px`; visual `staff-team` baselines updated |
 | D-061 no footer in the staff area, legal links in Konto and login | e2e `account.spec.ts` › settings by category (Konto page) |
+| D-063 optional wish for a person in the online booking (public team only) | API `booking-extras.test.ts` › wish for a person… (availability, month dots, next free slot, booking) |
+| D-064 staff: client search first, "+" new card, appointment for an existing card | API `booking-extras.test.ts` › existing client card (no duplicate, foreign card 404); e2e `calendar-view.spec.ts` › click on an empty spot… |
+| D-065 homepage service card opens the booking with that service | e2e `client.spec.ts` › homepage service card… |
+| D-066 Rentner-Schnitt 20′/20 €, Kinder-Schnitt 30′/25 € | engine BR-06 list; API `booking-extras.test.ts` › … new services; e2e `client.spec.ts` (description shown) |
+| D-067 click on an empty calendar spot creates an appointment there | e2e `calendar-view.spec.ts` › click on an empty spot… (10:07 → 10:00) |
+| BR-17 / D-068 no unusable gaps (< 15′) next to client requests | engine `business-rules.test.ts` BR-17 (10′ after an appointment, 10′ before the break, staff unrestricted, off with 0); visual baseline `client-week` |
 
 ## Staff UX (brief)
 

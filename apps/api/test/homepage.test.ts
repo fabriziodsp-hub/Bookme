@@ -20,7 +20,7 @@ describe('public homepage (D-052)', () => {
     await api('PUT', '/admin/homepage', { tagline: '  Schnitt mit Liebe  ', about: 'Seit 2010 in Musterstadt.\r\nTermine online.' });
 
     c = await cfg();
-    expect(c.team).toEqual([{ publicName: 'Sophie' }]);
+    expect(c.team).toEqual([{ id: stylistIds[1], publicName: 'Sophie' }]); // id: wish filter in the booking (D-063)
     expect(c.homepage).toEqual({ tagline: 'Schnitt mit Liebe', about: 'Seit 2010 in Musterstadt.\nTermine online.' });
     expect(JSON.stringify(c)).not.toContain('Stylistin 2'); // full name never public
 

@@ -4,6 +4,8 @@ import type { PartialMessages } from './index.js';
 export const it: PartialMessages = {
   service: {
     cut: 'Taglio',
+    cut_senior: 'Taglio pensionati',
+    cut_kids: 'Taglio bambini',
     wash_set: 'Lavaggio e messa in piega',
     color_root: 'Taglio e colore – ricrescita',
     color_full: 'Taglio e colore – dalle radici alle punte',

@@ -22,6 +22,7 @@ export const salonConfig = {
   staffStepMinutes: 5,
   minPhaseMinutes: 5,
   leadTimeMinutes: 30, // [A-09] from prototype
+  minClientGapMinutes: 15, // D-068 owner 2026-11-11: no 5′/10′ holes before/after a request (e.g. before the break)
   horizonDays: 364, // [A-09] from prototype
   selfServiceCutoffHours: 12, // A-05 confirmed (Balayage: 48 h via feeRule)
   reminderHoursBefore: 24, // A-06 confirmed: one reminder 24 h before
@@ -128,5 +129,8 @@ export const salonConfig = {
         { key: 'styling', kind: 'busy', minutes: 30 },
       ],
     },
+    // Owner request 2026-11-11 (D-066): reduced cuts for pensioners and children, women and men.
+    { id: 'cut_senior', audiences: ['women', 'men'], adultOnly: false, phases: [{ key: 'cut', kind: 'busy', minutes: 20 }] },
+    { id: 'cut_kids', audiences: ['women', 'men'], adultOnly: false, phases: [{ key: 'cut', kind: 'busy', minutes: 30 }] },
   ],
 } satisfies SalonConfigInput;

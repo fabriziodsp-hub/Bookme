@@ -26,8 +26,7 @@ export async function calendar(req: APIRequestContext, date: string) {
   return (await r.json()) as { appointments: { id: string; start: number; end: number; date: string; stylistId: string; status: string; customer: { lastName: string }; blocks: { start: number; end: number; kind: string }[] }[]; stylists: { id: string; displayName: string }[] };
 }
 
-export async function chooseService(page: Page, service: RegExp, adult = true) {
+export async function chooseService(page: Page, service: RegExp) {
   await page.getByRole('radio', { name: 'Damen' }).click();
-  await page.getByRole('radio', { name: adult ? 'Volljährig (ab 18)' : 'Minderjährig (unter 18)' }).click();
   await page.getByRole('radio', { name: service }).click();
 }

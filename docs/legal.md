@@ -50,9 +50,9 @@ Sources: IHK Karlsruhe (BEG IV, 8 years for Buchungsbelege), ZDH/Handwerkskammer
 - **Cookies:** clients get no cookies and no tracking. Only their own view settings are kept in the browser (§ 25(2) Nr. 2 TDDDG, requested by the user); staff use a strictly necessary session cookie. **No cookie banner is needed.** Adding analytics or third-party embeds later would change this.
 - **Allergies are health data** (Art. 9). They are stored only after staff confirm the client's explicit consent; the salon keeps the written consent. Withdrawal deletes the notes. A consent form for the salon should be drafted with the lawyer.
 
-## Minors
+## Minors (changed 2026-11-11, D-062)
 
-Minors can book only haircut and Waschen & Legen; no marketing offers for minors (no birth month stored for them). The contact may be a parent's.
+No age question and no ID check any more (owner decision): fewer data, no document handling. Services with chemical products (colour, highlights, Balayage, perm) show the notice from the hair-dye labelling of Regulation (EC) 1223/2009 Annex III ("nicht für Personen unter 16 Jahren bestimmt", risk of severe allergic reactions) in the booking, on the appointment page and in the e-mails – it is information, not a ban (there is no statutory ban on dyeing the hair of under-16s; the professional association advises caution for product-liability reasons). The salon decides at the appointment. Birthday offers: the opt-in text asks the client to confirm being at least 16 (Art. 8 DSGVO, § 7 UWG consent). Open legal point: a fee agreement (Balayage) with a minor needs the parents' consent (§§ 107, 108 BGB) – the salon should not book Balayage for minors.
 
 ## Balayage no-show / late-cancellation fee (D-020)
 

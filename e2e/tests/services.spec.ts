@@ -5,7 +5,7 @@ import { login, noSplash, SLUG } from './helpers';
 /**
  * Services editor (D-048). Runs on one project only: the catalogue is shared by all projects,
  * and parallel saves would (correctly) be rejected by the optimistic lock. The temporary service
- * is for men and adults only, so the other booking tests never see it.
+ * is for men only, so the other booking tests (Damen) never see it.
  */
 test('owner adds a service in the editor, clients can book it, the owner removes it again', async ({ page, browser }) => {
   test.skip(test.info().project.name !== 'desktop', 'shared catalogue – one project is enough');
@@ -17,7 +17,7 @@ test('owner adds a service in the editor, clients can book it, the owner removes
   await card.locator('summary').click();
   await card.getByLabel('Name', { exact: true }).fill('E2E Bartpflege');
   await card.getByRole('checkbox', { name: 'Damen' }).uncheck();
-  await card.getByRole('checkbox', { name: 'Nur ab 18 Jahren' }).check();
+  await card.getByRole('checkbox', { name: /Chemische Produkte/ }).check();
   await card.getByLabel('E2E Bartpflege, Behandlung, Dauer: Minuten').fill('20');
   await expect(card.locator('tfoot')).toContainText('20 Min.');
 
@@ -32,7 +32,6 @@ test('owner adds a service in the editor, clients can book it, the owner removes
   await noSplash(client);
   await client.goto(`/${SLUG}/buchen`);
   await client.getByRole('radio', { name: 'Herren' }).click();
-  await client.getByRole('radio', { name: 'Volljährig (ab 18)' }).click();
   await expect(client.getByRole('radio', { name: /E2E Bartpflege\s*20 Min\./ })).toBeVisible();
   await client.close();
 

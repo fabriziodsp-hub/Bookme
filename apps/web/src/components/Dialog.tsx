@@ -6,6 +6,10 @@ import { useEffect, useRef, type ReactNode } from 'react';
  */
 export function Dialog({ title, onClose, children, labelledBy }: { title: string; onClose: () => void; children: ReactNode; labelledBy?: string }) {
   const ref = useRef<HTMLDivElement>(null);
+  // Latest onClose without re-running the effect: callers pass inline arrows, and a re-run on every
+  // parent render (e.g. the calendar clock) moved the focus back to the first field while typing.
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
   useEffect(() => {
     const opener = document.activeElement as HTMLElement | null;
     const el = ref.current!;
@@ -14,7 +18,7 @@ export function Dialog({ title, onClose, children, labelledBy }: { title: string
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.stopPropagation();
-        onClose();
+        closeRef.current();
       } else if (e.key === 'Tab') {
         const f = focusables();
         if (!f.length) return;
@@ -31,7 +35,7 @@ export function Dialog({ title, onClose, children, labelledBy }: { title: string
       document.body.style.overflow = '';
       opener?.focus?.();
     };
-  }, [onClose]);
+  }, []);
   return (
     <div className="overlay" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className="sheet" role="dialog" aria-modal="true" aria-label={labelledBy ? undefined : title} aria-labelledby={labelledBy} ref={ref} tabIndex={-1}>

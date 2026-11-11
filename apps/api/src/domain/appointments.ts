@@ -230,6 +230,17 @@ function cleanCustomer(input: CustomerInput, adult: boolean) {
   return { firstName, lastName, email, phone, birthMonth: adult ? (bm ?? null) : null };
 }
 
+/** A client card of this salon (staff picked it in the search, D-064). */
+async function existingCustomer(tx: Tx, ctx: Ctx, id: string): Promise<ReturnType<typeof cleanCustomer>> {
+  const { rows } = await tx.query<{ first_name: string; last_name: string; email: string | null; phone: string | null; birth_month: number | null }>(
+    'SELECT first_name, last_name, email, phone, birth_month FROM customer WHERE tenant_id = $1 AND id = $2 AND anonymized_at IS NULL FOR UPDATE',
+    [ctx.tenantId, id],
+  );
+  const r = rows[0];
+  if (!r) throw Errors.notFound();
+  return { firstName: r.first_name, lastName: r.last_name, email: r.email, phone: r.phone, birthMonth: r.birth_month };
+}
+
 /** Re-use a customer of this salon when e-mail or phone and last name match. */
 async function upsertCustomer(tx: Tx, ctx: Ctx, c: ReturnType<typeof cleanCustomer>, now: Date): Promise<{ id: string; birthMonth: number | null }> {
   const { rows } = await tx.query<{ id: string; birth_month: number | null }>(
@@ -343,6 +354,8 @@ export interface CreateInput {
   start: Minute;
   stylistId?: string | undefined;
   customer: CustomerInput;
+  /** Staff: book for an existing client card (D-064) instead of matching by name and contact. */
+  customerId?: string | undefined;
   colorNotes?: string | undefined;
   internalNote?: string | undefined;
   /** Required (true) for services with a fee rule when booked online. */
@@ -372,7 +385,8 @@ export async function createAppointment(ctx: Ctx, input: CreateInput, tx?: Tx): 
     if (service.feeRule && input.source === 'online' && input.feeConsent !== true) {
       throw new AppError('FEE_CONSENT_REQUIRED', 422, 'Bitte bestätigen Sie die Ausfallgebühr.');
     }
-    const customer = cleanCustomer(input.customer, input.selection.adult);
+    // D-062: no age question; the birthday opt-in text asks the client to confirm being at least 16 (Art. 8 DSGVO).
+    const customer = input.customerId ? await existingCustomer(t, ctx, input.customerId) : cleanCustomer(input.customer, input.selection.adult !== false);
     const blocks = buildBlocks(service, input.selection, input.start);
     const now = ctx.clock.now();
     const mode = input.source === 'online' ? 'client' : 'staff';
@@ -395,7 +409,9 @@ export async function createAppointment(ctx: Ctx, input: CreateInput, tx?: Tx): 
     }
     if (!chosen) throw isConflictOnly(lastViolations) ? Errors.slotTaken() : Errors.ruleViolation(lastViolations);
 
-    const cust = await upsertCustomer(t, ctx, customer, now);
+    const cust = input.customerId
+      ? (await t.query('UPDATE customer SET last_seen_at = $2 WHERE id = $1', [input.customerId, now]), { id: input.customerId, birthMonth: customer.birthMonth })
+      : await upsertCustomer(t, ctx, customer, now);
     if (input.privacyAck) {
       await t.query('UPDATE customer SET privacy_ack_at = $2, privacy_ack_version = $3 WHERE id = $1', [cust.id, now, PRIVACY_NOTICE_VERSION]);
     }
@@ -435,7 +451,7 @@ export async function createAppointment(ctx: Ctx, input: CreateInput, tx?: Tx): 
             status,
             input.source,
             sha256(token),
-            service.adultOnly ? 'open' : 'not_required',
+            'not_required', // D-062: no age check / ID request any more
             fee?.amountCents ?? null,
             fee?.lateCancelHours ?? null,
             fee ? now : null,

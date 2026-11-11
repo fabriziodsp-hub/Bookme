@@ -107,6 +107,12 @@ export const SalonConfigSchema = z
     minPhaseMinutes: z.number().int().positive(),
     /** Same-day minimum distance between "now" and a client slot. */
     leadTimeMinutes: z.number().int().nonnegative(),
+    /**
+     * Client requests may not leave an unusable gap (1 … minClientGapMinutes − 1 minutes) to the
+     * neighbouring appointment, break, absence, opening or closing time (BR-17, D-068). 0 = off.
+     * Staff placements are not restricted.
+     */
+    minClientGapMinutes: z.number().int().nonnegative().default(0),
     /** How many days ahead clients can book (0 = today only). */
     horizonDays: z.number().int().positive(),
     /** Self-service reschedule/cancel allowed until this many hours before start. */
