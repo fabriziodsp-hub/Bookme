@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
-import { H, login, SLUG } from './helpers';
+import { classicCalendar, H, login, SLUG } from './helpers';
 
 const TAGS = ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'];
 
@@ -16,6 +16,7 @@ async function axe(page: Page, include?: string) {
 }
 
 test('account menu on the name: switch profile and log out; no logout tab any more (D-055)', async ({ page }) => {
+  await classicCalendar(page);
   await login(page);
   await expect(page.locator('.staff-nav').getByRole('button', { name: 'Abmelden' })).toHaveCount(0);
   const menu = page.getByRole('button', { name: /Maria .*Konto-Menü/ });

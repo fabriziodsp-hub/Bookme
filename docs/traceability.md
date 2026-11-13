@@ -64,6 +64,8 @@ Test locations: `packages/engine/test` (unit + property, Vitest/fast-check), `ap
 | D-066 Rentner-Schnitt 20′/20 €, Kinder-Schnitt 30′/25 € | engine BR-06 list; API `booking-extras.test.ts` › … new services; e2e `client.spec.ts` (description shown) |
 | D-067 click on an empty calendar spot creates an appointment there | e2e `calendar-view.spec.ts` › click on an empty spot… (10:07 → 10:00) |
 | BR-17 / D-068 no unusable gaps (< 15′) next to client requests | engine `business-rules.test.ts` BR-17 (10′ after an appointment, 10′ before the break, staff unrestricted, off with 0); visual baseline `client-week` |
+| D-069 full-screen "Ganzer Tag" with one bar and side drawer | e2e `calendar-view.spec.ts` › … full screen covers the page, bar with Anfragen, drawer (Escape, axe), back to Klassisch; header-navigation tests start in Klassisch (`classicCalendar`) |
+| D-070 30′/5′ raster, 15′ labels, axis left and right | visual `staff-team` baselines; `staff.spec.ts` › Mein Tag (column count without the two corners) |
 
 ## Staff UX (brief)
 

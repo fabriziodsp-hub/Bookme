@@ -1,9 +1,10 @@
 import { expect, test } from '@playwright/test';
-import { login, noSplash, SLUG } from './helpers';
+import { classicCalendar, login, noSplash, SLUG } from './helpers';
 
 const TODAY = '2026-11-02'; // frozen clock of the e2e server (Monday)
 
 test('logo: staff go back to today’s calendar, clients to the booking page (D-051)', async ({ page }) => {
+  await classicCalendar(page);
   await login(page);
   await page.goto(`/${SLUG}/team?date=2026-11-05`);
   await expect(page.locator('[data-day][aria-current="date"]')).toHaveAttribute('data-day', '2026-11-05');

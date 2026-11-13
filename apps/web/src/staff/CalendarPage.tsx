@@ -22,6 +22,7 @@ import {
   type LocalDate,
 } from '@salon/engine';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { Link } from 'react-router';
 import { MonthSheet } from '../booking/MonthSheet';
 import { api, ApiError, errorMessage } from '../lib/api';
 import { dateLong, dateShort, weekdayLong, weekdayShort } from '../lib/format';
@@ -120,7 +121,12 @@ export function CalendarPage({ me }: { me: StaffUser }) {
       /* per-device convenience only */
     }
   };
-  const [full, setFull] = useState(false);
+  // "Ganzer Tag" = full-screen calendar (D-069): one bar with day navigation, "Neuer Termin" and
+  // settings; everything else in a side drawer. Phones keep the classic page.
+  const phone = useMedia('(max-width: 700px)');
+  const full = zoom === 'fit' && !phone;
+  const [drawer, setDrawer] = useState(false);
+  const [browserFull, setBrowserFull] = useState(false);
   // The time grid fills the rest of the screen: the page itself does not scroll, the wheel scrolls the grid (D-060).
   const [gridH, setGridH] = useState(0);
 
@@ -153,31 +159,25 @@ export function CalendarPage({ me }: { me: StaffUser }) {
   }, [full, mode, range]);
   const HEAD = 49; // sticky column header
   // Phones keep "Klassisch": dragging by finger needs 9 px per 5′ (the switch is hidden there).
-  const phone = useMedia('(max-width: 700px)');
   const px = zoom === 'classic' || phone || !gridH ? PX_CLASSIC : Math.min(PX_CLASSIC, Math.max(FIT_MIN, (gridH - HEAD - 2) / (close - open)));
 
-  // Full screen: the real Fullscreen API where available (desktop, Android), otherwise only the layout (iPhone).
-  const toggleFull = async () => {
-    const next = !full;
-    setFull(next);
+  // Optional browser full screen on top (hides the browser's own bars); Fullscreen API, not on iPhone.
+  const toggleBrowserFull = async () => {
     try {
-      if (next && !document.fullscreenElement) await document.documentElement.requestFullscreen?.();
-      if (!next && document.fullscreenElement) await document.exitFullscreen();
+      if (!document.fullscreenElement) await document.documentElement.requestFullscreen?.();
+      else await document.exitFullscreen();
     } catch {
-      /* layout-only full screen */
+      /* not supported */
     }
   };
   useEffect(() => {
-    const onChange = () => !document.fullscreenElement && setFull(false); // Escape / browser button
+    const onChange = () => setBrowserFull(!!document.fullscreenElement);
     document.addEventListener('fullscreenchange', onChange);
     return () => document.removeEventListener('fullscreenchange', onChange);
   }, []);
   useEffect(() => {
-    if (!full) return;
-    const k = (e: KeyboardEvent) => e.key === 'Escape' && !document.fullscreenElement && !selected && !dialog && setFull(false);
-    document.addEventListener('keydown', k);
-    return () => document.removeEventListener('keydown', k);
-  }, [full, selected, dialog]);
+    if (!full && document.fullscreenElement) void document.exitFullscreen().catch(() => undefined);
+  }, [full]);
 
   const columns: Column[] = useMemo(() => {
     const stylists = data?.stylists ?? [];
@@ -421,9 +421,11 @@ export function CalendarPage({ me }: { me: StaffUser }) {
 
   const height = (close - open) * px;
   const showNow = columns.some((c) => c.date === today) && now.minute >= open && now.minute <= close;
-  const hours = Array.from({ length: Math.ceil((close - open) / 60) }, (_, i) => open + i * 60);
+  // Time axis every 15′ (owner 2026-11-13, D-070); full hours stand out.
+  const ticks = Array.from({ length: Math.ceil((close - open) / 15) }, (_, i) => open + i * 15);
   const colMin = mode === 'team' ? 150 : range === 'week' ? 110 : 220;
-  const gridCols = `48px repeat(${columns.length}, minmax(${colMin}px, 1fr))`;
+  // Time axis on both sides (owner 2026-11-13, D-070): left and right column.
+  const gridCols = `48px repeat(${columns.length}, minmax(${colMin}px, 1fr)) 48px`;
 
   const renderAppt = (a: Appointment, col: Column) => {
     const isDragged = drag?.id === a.id;
@@ -477,43 +479,97 @@ export function CalendarPage({ me }: { me: StaffUser }) {
   return (
     <main id="main" ref={rootRef} className={`wrap-wide staff cal-page ${sel ? 'with-panel' : ''} ${full ? 'cal-full' : ''}`}>
       <h1 className="sr-only">{t('staff.nav.calendar')}</h1>
-      <div className="toolbar">
-        <div className="seg" role="group" aria-label="Ansicht">
-          <button type="button" aria-pressed={mode === 'mine'} disabled={!me.stylistId} onClick={() => setMode('mine')}>{t('staff.myDay')}</button>
-          <button type="button" aria-pressed={mode === 'team'} onClick={() => (setMode('team'), setRange('day'))}>{t('staff.team')}</button>
-        </div>
-        {mode === 'mine' && (
-          <div className="seg" role="group" aria-label="Zeitraum">
-            <button type="button" aria-pressed={range === 'day'} onClick={() => setRange('day')}>{t('staff.day')}</button>
-            <button type="button" aria-pressed={range === 'week'} onClick={() => setRange('week')}>{t('staff.week')}</button>
+      {full ? (
+        <>
+          {/* Ganzer Tag (D-069): one bar – menu, day navigation, new appointment, settings */}
+          <div className="toolbar cal-bar" role="group" aria-label="Navigation">
+            <button type="button" className="btn" aria-expanded={drawer} aria-controls="cal-drawer" onClick={() => setDrawer(true)}>
+              <span aria-hidden="true">☰ </span>{t('staff.cal.menu')}
+            </button>
+            <div className="seg" role="group" aria-label="Ansicht">
+              <button type="button" aria-pressed={mode === 'mine'} disabled={!me.stylistId} onClick={() => setMode('mine')}>{t('staff.myDay')}</button>
+              <button type="button" aria-pressed={mode === 'team'} onClick={() => (setMode('team'), setRange('day'))}>{t('staff.team')}</button>
+            </div>
+            {mode === 'mine' && (
+              <div className="seg" role="group" aria-label="Zeitraum">
+                <button type="button" aria-pressed={range === 'day'} onClick={() => setRange('day')}>{t('staff.day')}</button>
+                <button type="button" aria-pressed={range === 'week'} onClick={() => setRange('week')}>{t('staff.week')}</button>
+              </div>
+            )}
+            <button type="button" className="btn" disabled={!undoStack.length} onClick={() => runUndo('undo')} aria-label={`${t('staff.undo')}${undoStack.at(-1) ? `: ${undoStack.at(-1)!.label}` : ''}`} title={t('staff.undo')}>↶</button>
+            <button type="button" className="btn hide-m" aria-label={t('staff.prevWeek')} onClick={() => setDate(addDays(date, -7))}>«</button>
+            <button type="button" className="btn" aria-label={t('staff.prevDay')} onClick={() => setDate(nextOpen(date, -1))}>‹</button>
+            <button type="button" className="btn" onClick={goToday}>{t('ui.today')}</button>
+            <button type="button" className="btn" aria-label={t('staff.nextDay')} onClick={() => setDate(nextOpen(date, 1))}>›</button>
+            <button type="button" className="btn hide-m" aria-label={t('staff.nextWeek')} onClick={() => setDate(addDays(date, 7))}>»</button>
+            <button type="button" className="btn date" onClick={() => setDialog('month')}><span aria-hidden="true">📅 </span><span className="sr-only">{t('staff.pickDate')}: </span><span className="hide-s">{dateLong(date)}</span><span className="show-s">{dateShort(date)}<span className="sr-only"> ({dateLong(date)})</span></span></button>
+            <button type="button" className="btn primary" onClick={() => setDialog('new')}>+ {t('staff.newAppointment')}</button>
+            <Link className="btn" to={`/${salon.slug}/team/anfragen`}>{t('staff.nav.requests')} {!!data?.openRequests && <span className="badge warn">{data.openRequests}</span>}</Link>
           </div>
-        )}
-        <div className="seg hide-m" role="group" aria-label={t('staff.cal.zoom')}>
-          <button type="button" aria-pressed={zoom === 'fit'} onClick={() => setZoom('fit')}>{t('staff.cal.fit')}</button>
-          <button type="button" aria-pressed={zoom === 'classic'} onClick={() => setZoom('classic')}>{t('staff.cal.classic')}</button>
-        </div>
-        <button type="button" className="btn" aria-pressed={full} onClick={() => void toggleFull()}>
-          <span aria-hidden="true">{full ? '⤡' : '⤢'} </span>{full ? t('staff.cal.exitFull') : t('staff.cal.full')}
-        </button>
-        <span className="spacer" />
-        <button type="button" className="btn" disabled={!undoStack.length} onClick={() => runUndo('undo')} aria-label={`${t('staff.undo')}${undoStack.at(-1) ? `: ${undoStack.at(-1)!.label}` : ''}`}>↶ <span className="hide-s">{t('staff.undo')}</span></button>
-        <button type="button" className="btn" disabled={!redoStack.length} onClick={() => runUndo('redo')} aria-label={t('staff.redo')}>↷ <span className="hide-s">{t('staff.redo')}</span></button>
-        <button type="button" className="btn" onClick={() => setDialog('absence')}>{t('staff.newAbsence')}</button>
-        <details className="help">
-          <summary className="btn ghost">Hilfe</summary>
-          <p className="muted">{t('staff.help')}</p>
-        </details>
-        <button type="button" className="btn primary fab-m" onClick={() => setDialog('new')}>+ {t('staff.newAppointment')}</button>
-      </div>
-
-      <div className="toolbar" role="group" aria-label="Navigation">
-        <button type="button" className="btn hide-m" aria-label={t('staff.prevWeek')} onClick={() => setDate(addDays(date, -7))}>«</button>
-        <button type="button" className="btn" aria-label={t('staff.prevDay')} onClick={() => setDate(nextOpen(date, -1))}>‹</button>
-        <button type="button" className="btn" onClick={goToday}>{t('ui.today')}</button>
-        <button type="button" className="btn" aria-label={t('staff.nextDay')} onClick={() => setDate(nextOpen(date, 1))}>›</button>
-        <button type="button" className="btn hide-m" aria-label={t('staff.nextWeek')} onClick={() => setDate(addDays(date, 7))}>»</button>
-        <button type="button" className="btn date" onClick={() => setDialog('month')}><span aria-hidden="true">📅 </span><span className="sr-only">{t('staff.pickDate')}: </span><span className="hide-s">{dateLong(date)}</span><span className="show-s">{dateShort(date)}<span className="sr-only"> ({dateLong(date)})</span></span></button>
-      </div>
+          {drawer && (
+            <Drawer id="cal-drawer" title={t('staff.cal.menu')} onClose={() => setDrawer(false)}>
+              <nav aria-label={t('staff.area')} className="drawer-nav">
+                <Link className="btn block-l" to={`/${salon.slug}/team/kunden`}>{t('staff.nav.customers')}</Link>
+                <Link className="btn block-l" to={`/${salon.slug}/team/einstellungen`}>{t('staff.nav.settings')}</Link>
+                <Link className="btn block-l" to={`/${salon.slug}/team/einstellungen/konto`}>{t('staff.cal.account', { name: me.displayName })}</Link>
+              </nav>
+              <h3>{t('staff.cal.view')}</h3>
+              <div className="drawer-row">
+                <button type="button" className="btn block-l" onClick={() => (setZoom('classic'), setDrawer(false))}>{t('staff.cal.toClassic')}</button>
+              </div>
+              {typeof document.documentElement.requestFullscreen === 'function' && (
+                <button type="button" className="btn block-l" aria-pressed={browserFull} onClick={() => void toggleBrowserFull()}>
+                  <span aria-hidden="true">{browserFull ? '⤡' : '⤢'} </span>{browserFull ? t('staff.cal.exitFull') : t('staff.cal.full')}
+                </button>
+              )}
+              <h3>{t('staff.cal.edit')}</h3>
+              <div className="drawer-row">
+                <button type="button" className="btn" disabled={!undoStack.length} onClick={() => runUndo('undo')} aria-label={`${t('staff.undo')}${undoStack.at(-1) ? `: ${undoStack.at(-1)!.label}` : ''}`}>↶ <span className="hide-s">{t('staff.undo')}</span></button>
+                <button type="button" className="btn" disabled={!redoStack.length} onClick={() => runUndo('redo')} aria-label={t('staff.redo')}>↷ <span className="hide-s">{t('staff.redo')}</span></button>
+                <button type="button" className="btn" onClick={() => (setDrawer(false), setDialog('absence'))}>{t('staff.newAbsence')}</button>
+              </div>
+              <h3>{t('staff.cal.help')}</h3>
+              <p className="small muted">{t('staff.help')}</p>
+            </Drawer>
+          )}
+        </>
+      ) : (
+        <>
+          <div className="toolbar">
+            <div className="seg" role="group" aria-label="Ansicht">
+              <button type="button" aria-pressed={mode === 'mine'} disabled={!me.stylistId} onClick={() => setMode('mine')}>{t('staff.myDay')}</button>
+              <button type="button" aria-pressed={mode === 'team'} onClick={() => (setMode('team'), setRange('day'))}>{t('staff.team')}</button>
+            </div>
+            {mode === 'mine' && (
+              <div className="seg" role="group" aria-label="Zeitraum">
+                <button type="button" aria-pressed={range === 'day'} onClick={() => setRange('day')}>{t('staff.day')}</button>
+                <button type="button" aria-pressed={range === 'week'} onClick={() => setRange('week')}>{t('staff.week')}</button>
+              </div>
+            )}
+            <div className="seg hide-m" role="group" aria-label={t('staff.cal.zoom')}>
+              <button type="button" aria-pressed={zoom === 'fit'} onClick={() => (setZoom('fit'), setDrawer(false))}>{t('staff.cal.fit')}</button>
+              <button type="button" aria-pressed={zoom === 'classic'} onClick={() => (setZoom('classic'), setDrawer(false))}>{t('staff.cal.classic')}</button>
+            </div>
+            <span className="spacer" />
+            <button type="button" className="btn" disabled={!undoStack.length} onClick={() => runUndo('undo')} aria-label={`${t('staff.undo')}${undoStack.at(-1) ? `: ${undoStack.at(-1)!.label}` : ''}`}>↶ <span className="hide-s">{t('staff.undo')}</span></button>
+            <button type="button" className="btn" disabled={!redoStack.length} onClick={() => runUndo('redo')} aria-label={t('staff.redo')}>↷ <span className="hide-s">{t('staff.redo')}</span></button>
+            <button type="button" className="btn" onClick={() => (setDrawer(false), setDialog('absence'))}>{t('staff.newAbsence')}</button>
+            <details className="help">
+              <summary className="btn ghost">Hilfe</summary>
+              <p className="muted">{t('staff.help')}</p>
+            </details>
+            <button type="button" className="btn primary fab-m" onClick={() => setDialog('new')}>+ {t('staff.newAppointment')}</button>
+          </div>
+          <div className="toolbar" role="group" aria-label="Navigation">
+            <button type="button" className="btn hide-m" aria-label={t('staff.prevWeek')} onClick={() => setDate(addDays(date, -7))}>«</button>
+            <button type="button" className="btn" aria-label={t('staff.prevDay')} onClick={() => setDate(nextOpen(date, -1))}>‹</button>
+            <button type="button" className="btn" onClick={goToday}>{t('ui.today')}</button>
+            <button type="button" className="btn" aria-label={t('staff.nextDay')} onClick={() => setDate(nextOpen(date, 1))}>›</button>
+            <button type="button" className="btn hide-m" aria-label={t('staff.nextWeek')} onClick={() => setDate(addDays(date, 7))}>»</button>
+            <button type="button" className="btn date" onClick={() => setDialog('month')}><span aria-hidden="true">📅 </span><span className="sr-only">{t('staff.pickDate')}: </span><span className="hide-s">{dateLong(date)}</span><span className="show-s">{dateShort(date)}<span className="sr-only"> ({dateLong(date)})</span></span></button>
+          </div>
+        </>
+      )}
 
       <div className="strip" role="group" aria-label="Woche" ref={stripRef}>
         {week.map((d) => {
@@ -554,9 +610,10 @@ export function CalendarPage({ me }: { me: StaffUser }) {
               </span>
             </div>
           ))}
+          <div className="tg-head corner corner-r" aria-hidden="true" />
           <div className="tg-axis" style={{ height, position: 'sticky' }} aria-hidden="true">
-            {hours.map((h) => (
-              <span key={h} style={{ top: (h - open) * px + (h === open ? 8 : 0) }}>{formatHm(h)}</span>
+            {ticks.map((m) => (
+              <span key={m} className={m % 60 === 0 ? 'hr' : 'qt'} style={{ top: (m - open) * px + (m === open ? 8 : 0) }}>{formatHm(m)}</span>
             ))}
             {showNow && <b className="tg-now-time" style={{ top: (now.minute - open) * px }}>{formatHm(now.minute)}</b>}
           </div>
@@ -569,7 +626,7 @@ export function CalendarPage({ me }: { me: StaffUser }) {
                 key={c.key}
                 className={`tg-col ${drag?.col.key === c.key && drag.mode === 'move' && !drag.dropDay ? 'drop-target' : ''}`}
                 data-col={c.key}
-                style={{ height, ['--h60' as string]: `${60 * px}px`, ['--h15' as string]: `${15 * px}px`, ['--h5' as string]: `${5 * px}px` }}
+                style={{ height, ['--h60' as string]: `${60 * px}px`, ['--h30' as string]: `${30 * px}px`, ['--h5' as string]: `${5 * px}px` }}
                 onClick={(e) => {
                   if (e.target !== e.currentTarget || !h) return; // blocks, breaks, closed time: not here
                   const y = e.clientY - e.currentTarget.getBoundingClientRect().top;
@@ -607,6 +664,11 @@ export function CalendarPage({ me }: { me: StaffUser }) {
               </div>
             );
           })}
+          <div className="tg-axis tg-axis-r" style={{ height, position: 'sticky' }} aria-hidden="true">
+            {ticks.map((m) => (
+              <span key={m} className={m % 60 === 0 ? 'hr' : 'qt'} style={{ top: (m - open) * px + (m === open ? 8 : 0) }}>{formatHm(m)}</span>
+            ))}
+                      </div>
         </div>
       </div>
 
@@ -667,4 +729,40 @@ function useMedia(q: string) {
     return () => mq.removeEventListener('change', on);
   }, [q]);
   return m;
+}
+
+/** Side drawer of the full-screen calendar (D-069): modal, focus inside, Escape and backdrop close it. */
+function Drawer({ id, title, onClose, children }: { id: string; title: string; onClose: () => void; children: React.ReactNode }) {
+  const ref = useRef<HTMLElement>(null);
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+  useEffect(() => {
+    const opener = document.activeElement as HTMLElement | null;
+    const el = ref.current!;
+    const focusables = () => [...el.querySelectorAll<HTMLElement>('button:not([disabled]), [href], input, select, [tabindex]:not([tabindex="-1"])')];
+    (focusables()[0] ?? el).focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') (e.stopPropagation(), closeRef.current());
+      else if (e.key === 'Tab') {
+        const f = focusables();
+        if (!f.length) return;
+        if (e.shiftKey && document.activeElement === f[0]) (e.preventDefault(), f.at(-1)!.focus());
+        else if (!e.shiftKey && document.activeElement === f.at(-1)) (e.preventDefault(), f[0]!.focus());
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => (document.removeEventListener('keydown', onKey), opener?.focus?.());
+  }, []);
+  return (
+    <div className="overlay drawer-overlay" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+      <aside id={id} ref={ref} className="drawer" role="dialog" aria-modal="true" aria-label={title} tabIndex={-1}>
+        <div className="row" style={{ marginBottom: 8 }}>
+          <h2 style={{ margin: 0 }}>{title}</h2>
+          <span className="spacer" />
+          <button type="button" className="btn" aria-label="Menü schließen" onClick={onClose}>✕</button>
+        </div>
+        {children}
+      </aside>
+    </div>
+  );
 }

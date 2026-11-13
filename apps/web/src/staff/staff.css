@@ -56,12 +56,18 @@
 .tg-axis span { position: absolute; right: 6px; transform: translateY(-50%); }
 .tg-col { position: relative; border-left: 1px solid var(--border); scroll-snap-align: start; }
 .tg-col.drop-target { background: color-mix(in srgb, var(--ac) 8%, transparent); }
-/* 5′/15′/60′ raster, barely visible, drawn ABOVE blocks but never catching input */
+/* Raster (D-070): full hours and 30′ slots clearly visible, 5′ lines light and transparent.
+   Drawn ABOVE blocks but never catching input. */
 .tg-col::after {
   content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 6;
-  background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(color-mix(in srgb, var(--grid) 55%, transparent) 1px, transparent 1px), linear-gradient(color-mix(in srgb, var(--grid) 25%, transparent) 1px, transparent 1px);
-  background-size: 100% var(--h60), 100% var(--h15), 100% var(--h5);
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--border-strong) 45%, transparent) 1px, transparent 1px),
+    linear-gradient(color-mix(in srgb, var(--border-strong) 28%, transparent) 1px, transparent 1px),
+    linear-gradient(color-mix(in srgb, var(--grid) 45%, transparent) 1px, transparent 1px);
+  background-size: 100% var(--h60), 100% var(--h30), 100% var(--h5);
 }
+.tg-axis span.hr { font-weight: 650; color: var(--text); }
+.tg-axis span.qt { font-size: 0.64rem; }
 .tg-off { position: absolute; left: 0; right: 0; background: var(--surface2); color: var(--muted); font-size: 0.75rem; display: flex; justify-content: center; padding-top: 4px; z-index: 1; }
 /* "Now" line: thin, semi-transparent, drawn over blocks with a dark halo so it stays visible on any colour. */
 .tg-now {
@@ -223,3 +229,21 @@ main.cal-full .toolbar { margin-bottom: 6px; }
 .blk.tiny .tm { flex: none; }
 .blk.tiny .ph, .blk.tiny .nt { display: none; }
 .blk.tiny:not(.first) .ph { display: inline; overflow: hidden; text-overflow: ellipsis; }
+
+/* Ganzer Tag = full-screen calendar with one bar and a side drawer (D-069) */
+main.cal-full .cal-bar { flex-wrap: nowrap; }
+main.cal-full .cal-bar .date { flex: 1 1 auto; min-width: 0; }
+.drawer-overlay { align-items: stretch !important; justify-content: flex-start !important; z-index: 60; }
+.drawer {
+  width: min(360px, 92vw); height: 100%; overflow: auto; background: var(--surface); border-right: 1px solid var(--border);
+  padding: calc(16px + env(safe-area-inset-top)) 16px calc(16px + env(safe-area-inset-bottom)); box-shadow: var(--shadow);
+  display: flex; flex-direction: column; gap: 8px; animation: slide-in-left var(--t-slow) var(--ease) both;
+}
+.drawer h3 { margin: 12px 0 0; font-size: 0.85rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.drawer-nav { display: flex; flex-direction: column; gap: 6px; }
+.drawer-row { display: flex; flex-wrap: wrap; gap: 6px; }
+@keyframes slide-in-left { from { opacity: 0.6; transform: translateX(-24px); } to { opacity: 1; transform: none; } }
+/* right time axis (D-070) */
+.tg-head.corner-r { left: auto; right: 0; }
+.tg-axis.tg-axis-r { left: auto; right: 0; border-right: 0; border-left: 1px solid var(--border); }
+.tg-axis.tg-axis-r span { right: auto; left: 6px; }

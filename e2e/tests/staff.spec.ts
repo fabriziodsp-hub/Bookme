@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { calendar, H, login, SLUG } from './helpers';
+import { calendar, classicCalendar, H, login, SLUG } from './helpers';
 
 /** Empty days after the seeded 3 months; each project gets its own week so runs do not collide. */
 function emptyDay(n: number) {
@@ -46,6 +46,7 @@ async function dragHandle(page: Page, apptId: string, dy: number, dx = 0) {
 
 test.describe('staff', () => {
   test('navigation: every tab leads to its own clean URL, also after switching several times', async ({ page }) => {
+    await classicCalendar(page);
     await login(page);
     const base = new URL(page.url()).pathname.replace(/\/$/, '');
     expect(base).toBe(`/${SLUG}/team`);
@@ -96,6 +97,7 @@ test.describe('staff', () => {
   });
 
   test('login, open request inbox, accept a request', async ({ page }) => {
+    await classicCalendar(page);
     await login(page);
     await page.getByRole('link', { name: /Anfragen/ }).click();
     const first = page.locator('article').first();
@@ -226,7 +228,7 @@ test('"Mein Tag" shows only the logged-in stylist\'s clients', async ({ page }) 
   const me = await (await page.request.get('/api/auth/me', { headers: { 'x-requested-with': 'salon' } })).json();
   const all = await calendar(page.request, DAY);
   const mine = all.appointments.filter((a) => a.stylistId === me.stylistId && ['requested', 'discuss', 'confirmed', 'completed', 'no_show'].includes(a.status));
-  await expect(page.locator('.tg-head')).toHaveCount(2); // corner + one column
+  await expect(page.locator('.tg-head:not(.corner)')).toHaveCount(1); // one column (corners left and right, D-070)
   const ids = await page.locator('[data-appt]').evaluateAll((els) => [...new Set(els.map((e) => e.getAttribute('data-appt')))]);
   expect(ids.sort()).toEqual(mine.map((a) => a.id).sort());
 });

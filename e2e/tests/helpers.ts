@@ -30,3 +30,11 @@ export async function chooseService(page: Page, service: RegExp) {
   await page.getByRole('radio', { name: 'Damen' }).click();
   await page.getByRole('radio', { name: service }).click();
 }
+
+/**
+ * Classic calendar page (header, tabs, account menu visible). On desktop the default "Ganzer Tag" is a
+ * full-screen calendar that covers them (D-069); tests of the header navigation start in the classic view.
+ */
+export async function classicCalendar(page: Page) {
+  await page.addInitScript(() => localStorage.setItem('salon.calZoom', 'classic'));
+}
