@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import AxeBuilder from '@axe-core/playwright';
 import { H, login, SLUG } from './helpers';
 
 /** Calendar fits the screen, "Ganzer Tag" / "Klassisch", full screen, wheel = next day (D-060). */
@@ -17,7 +18,8 @@ test.describe('calendar view', () => {
     // whole opening day visible without scrolling, page without scrollbar
     expect(await grid.evaluate((el) => el.scrollHeight - el.clientHeight)).toBeLessThanOrEqual(2);
     expect(await page.evaluate(() => document.documentElement.scrollHeight - innerHeight)).toBeLessThanOrEqual(1);
-    await page.getByRole('button', { name: 'Klassisch' }).click();
+    await page.getByRole('button', { name: 'Menü', exact: true }).click();
+    await page.getByRole('dialog', { name: 'Menü' }).getByRole('button', { name: /Klassische Ansicht/ }).click();
     await expect(grid).toHaveAttribute('data-px', '1.800');
     await page.reload();
     await expect(page.getByRole('button', { name: 'Klassisch' })).toHaveAttribute('aria-pressed', 'true'); // remembered per device
@@ -36,15 +38,30 @@ test.describe('calendar view', () => {
     await page.mouse.wheel(0, -120);
     await expect(page.locator('[data-day][aria-current="date"]')).toHaveAttribute('data-day', '2026-11-04');
 
-    await page.getByRole('button', { name: 'Vollbild' }).click();
+    // Ganzer Tag = full-screen calendar (D-069): covers header and tabs, one bar, the rest in the menu drawer
     await expect(page.locator('main.cal-full')).toBeVisible();
     const box = (await page.locator('main.cal-full').boundingBox())!;
     const vp = page.viewportSize()!;
-    expect([box.x, box.y, Math.round(box.width), Math.round(box.height)]).toEqual([0, 0, vp.width, vp.height]); // covers header and tabs
+    expect([box.x, box.y, Math.round(box.width), Math.round(box.height)]).toEqual([0, 0, vp.width, vp.height]);
     await page.getByRole('button', { name: 'Nächster Öffnungstag' }).click();
     await expect(page.locator('[data-day][aria-current="date"]')).toHaveAttribute('data-day', '2026-11-05');
-    await page.getByRole('button', { name: 'Vollbild beenden' }).click();
+    await expect(page.locator('.cal-bar').getByRole('link', { name: /Anfragen/ })).toBeVisible();
+    await page.getByRole('button', { name: 'Menü', exact: true }).click();
+    const drawer = page.getByRole('dialog', { name: 'Menü' });
+    await expect(drawer.getByRole('link', { name: /Einstellungen/ })).toBeVisible();
+    await page.evaluate(() => {
+      const sheet = new CSSStyleSheet();
+      sheet.replaceSync('*, *::before, *::after { transition: none !important; animation: none !important; }');
+      document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
+    });
+    const axe = await new AxeBuilder({ page }).include('#cal-drawer').include('.cal-bar').withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
+    expect(axe.violations.map((v) => `${v.id}: ${v.nodes[0]?.target.join(' ')}`)).toEqual([]);
+    await page.keyboard.press('Escape');
+    await expect(drawer).toBeHidden();
+    await page.getByRole('button', { name: 'Menü', exact: true }).click();
+    await drawer.getByRole('button', { name: /Klassische Ansicht/ }).click();
     await expect(page.locator('main.cal-full')).toHaveCount(0);
+    await page.getByRole('button', { name: 'Ganzer Tag' }).click(); // back for the next tests on this device
   });
 
   test('click on an empty spot opens "Neuer Termin" at that time; client search first, "+" for a new card (D-064, D-067)', async ({ page }) => {
