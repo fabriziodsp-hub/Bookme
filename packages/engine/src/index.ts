@@ -8,3 +8,4 @@ export * from './edit.js';
 export * from './ledger.js';
 export * from './policies.js';
 export * from './catalog.js';
+export * from './workhours.js';

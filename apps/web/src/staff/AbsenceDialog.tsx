@@ -8,7 +8,7 @@ import { useStylists } from './hooks';
 import type { Absence } from '../lib/types';
 
 /** Create (or delete) an absence block (S-7). Rejected over existing appointments – lists them. */
-export function AbsenceDialog(p: { date: LocalDate; stylistId: string; existing: Absence | null; onClose: () => void; onDone: () => void }) {
+export function AbsenceDialog(p: { date: LocalDate; stylistId: string; existing: Absence | null; canDelete: boolean; onClose: () => void; onDone: () => void }) {
   const t = useT();
   const stylists = useStylists();
   const [stylistId, setStylistId] = useState(p.stylistId);
@@ -25,10 +25,13 @@ export function AbsenceDialog(p: { date: LocalDate; stylistId: string; existing:
       <Dialog title={t(`absenceKind.${e.kind}`)} onClose={p.onClose}>
         <h2>{t(`absenceKind.${e.kind}`)}</h2>
         <p>{dateLong(e.from.date)} {formatHm(e.from.minute)} – {dateLong(e.to.date)} {formatHm(e.to.minute)}</p>
-        {e.note && <p className="muted">{e.note}</p>}
+        {e.note && <p className={e.kind === 'note' ? undefined : 'muted'}>{e.note}</p>}
+        {e.kind === 'note' && <p className="small muted">{e.blocks ? t('staff.cnote.blocksYes') : t('staff.cnote.blocksNo')}</p>}
         {error && <p className="notice error">{error}</p>}
         <div className="row">
-          <button type="button" className="btn danger" onClick={async () => { try { await api(`/staff/absences/${e.id}`, { method: 'DELETE' }); p.onDone(); } catch (err) { setError(errorMessage(err)); } }}>{t('staff.delete')}</button>
+          {(p.canDelete || e.kind === 'note') && (
+            <button type="button" className="btn danger" onClick={async () => { try { await api(`/staff/absences/${e.id}`, { method: 'DELETE' }); p.onDone(); } catch (err) { setError(errorMessage(err)); } }}>{t('staff.delete')}</button>
+          )}
           <button type="button" className="btn" onClick={p.onClose}>{t('ui.close')}</button>
         </div>
       </Dialog>

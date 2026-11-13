@@ -103,3 +103,47 @@ test.describe('calendar view', () => {
   });
 });
 
+
+test.describe('column buttons: working hours (owner) and internal notes (D-071, D-072)', () => {
+  test.skip(() => test.info().project.name !== 'desktop', 'shared team data – desktop only');
+
+  test('a note that does not block, shown in the column; the hours dialog saves (axe on both)', async ({ page }) => {
+    const day = ['2027-05-03', '2027-05-10', '2027-05-17'][test.info().retry] ?? '2027-05-24';
+    await login(page);
+    await page.goto(`/${SLUG}/team?date=${day}`);
+    await page.getByRole('button', { name: 'Team', exact: true }).click();
+    const axe = async (sel: string) => {
+      await page.evaluate(() => {
+        const sheet = new CSSStyleSheet(); // no half-faded colours (dialog animation)
+        sheet.replaceSync('*, *::before, *::after { transition: none !important; animation: none !important; }');
+        document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
+      });
+      const r = await new AxeBuilder({ page }).include(sel).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
+      expect(r.violations.map((v) => `${v.id}: ${v.nodes[0]?.target.join(' ')}`)).toEqual([]);
+    };
+    await page.getByRole('button', { name: /^Notiz im Kalender für Sophie/ }).click();
+    const dlg = page.getByRole('dialog', { name: 'Notiz im Kalender' });
+    await dlg.getByLabel(/Text/).fill('E2E Lieferung');
+    await dlg.getByLabel('Von').fill('10:00');
+    await dlg.getByLabel('Bis').fill('10:30');
+    await expect(dlg.getByRole('checkbox', { name: /Blockiert die Arbeitszeit/ })).not.toBeChecked();
+    await axe('.sheet');
+    await dlg.getByRole('button', { name: 'Anlegen' }).click();
+    await expect(dlg).toBeHidden();
+    const note = page.locator('.note-blk', { hasText: 'E2E Lieferung' });
+    await expect(note).toBeVisible();
+    await expect(note).toHaveClass(/free/);
+
+    await page.getByRole('button', { name: /^Arbeitszeiten und Abwesenheiten von Sophie/ }).click();
+    const hrs = page.getByRole('dialog', { name: /Arbeitszeiten – Sophie/ });
+    await hrs.getByLabel('Samstag: Arbeitszeit').selectOption('own'); // same times as the salon: no effect on other tests
+    await axe('.sheet');
+    await hrs.getByRole('button', { name: 'Speichern' }).click();
+    await expect(hrs).toBeHidden();
+    await page.getByRole('button', { name: /^Arbeitszeiten und Abwesenheiten von Sophie/ }).click();
+    await expect(hrs.getByLabel('Samstag: Arbeitszeit')).toHaveValue('own');
+    await hrs.getByLabel('Samstag: Arbeitszeit').selectOption('salon');
+    await hrs.getByRole('button', { name: 'Speichern' }).click();
+    await expect(hrs).toBeHidden();
+  });
+});

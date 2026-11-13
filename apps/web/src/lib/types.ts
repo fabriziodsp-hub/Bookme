@@ -1,4 +1,4 @@
-import type { Block, LocalDate, Minute, SalonConfig } from '@salon/engine';
+import type { Block, LocalDate, Minute, SalonConfig, WorkHours } from '@salon/engine';
 
 export type Status = 'requested' | 'discuss' | 'confirmed' | 'declined' | 'expired' | 'completed' | 'no_show' | 'cancelled';
 
@@ -26,6 +26,8 @@ export interface Stylist {
   id: string;
   displayName: string;
   color: string;
+  /** Personal working hours (D-071); null = salon hours. */
+  workHours?: WorkHours | null;
 }
 
 export interface SalonData {
@@ -111,8 +113,10 @@ export interface Appointment {
 export interface Absence {
   id: string;
   stylistId: string;
-  kind: 'vacation' | 'sick' | 'training' | 'other';
+  kind: 'vacation' | 'sick' | 'training' | 'other' | 'note';
   note: string | null;
+  /** Internal notes may leave the time bookable (D-072). */
+  blocks: boolean;
   from: { date: LocalDate; minute: Minute };
   to: { date: LocalDate; minute: Minute };
 }

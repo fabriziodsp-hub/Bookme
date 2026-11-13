@@ -22,7 +22,7 @@ import {
   type Minute,
   type Selection,
   type Violation,
-} from '@salon/engine';
+ type WorkHours} from '@salon/engine';
 import { salonNow } from '../clock.js';
 import { lockStylistDay, PG, pgCode, withTx, type Queryable, type Tx } from '../db/pool.js';
 import { dropPendingReminders, enqueue } from '../messages/outbox.js';
@@ -291,12 +291,12 @@ async function guardOverlap<T>(fn: () => Promise<T>): Promise<T> {
 
 const isConflictOnly = (v: Violation[]) => v.every((x) => x.code === 'OVERLAPS_BUSY' || x.code === 'IN_ABSENCE');
 
-export async function activeStylists(q: Queryable, tenantId: string): Promise<{ id: string; displayName: string; color: string }[]> {
-  const { rows } = await q.query<{ id: string; display_name: string; color: string }>(
-    'SELECT id, display_name, color FROM stylist WHERE tenant_id = $1 AND active ORDER BY sort_order, display_name',
+export async function activeStylists(q: Queryable, tenantId: string): Promise<{ id: string; displayName: string; color: string; workHours: WorkHours | null }[]> {
+  const { rows } = await q.query<{ id: string; display_name: string; color: string; work_hours: WorkHours | null }>(
+    'SELECT id, display_name, color, work_hours FROM stylist WHERE tenant_id = $1 AND active ORDER BY sort_order, display_name',
     [tenantId],
   );
-  return rows.map((r) => ({ id: r.id, displayName: r.display_name, color: r.color }));
+  return rows.map((r) => ({ id: r.id, displayName: r.display_name, color: r.color, workHours: r.work_hours }));
 }
 
 async function redeemedYears(q: Queryable, ctx: Ctx, customerId: string, exceptAppointment?: string): Promise<number[]> {

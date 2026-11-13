@@ -28,7 +28,7 @@ import { Errors } from '../../domain/errors.js';
 import { dayRange } from '../../domain/occupancy.js';
 import { listPrices, setPrices } from '../../domain/prices.js';
 import { ACCENTS, setHomepage, setOpeningHours, setTheme, THEME_PRESETS } from '../../domain/tenants.js';
-import { createStaff, deleteStaff, listStaff, setStylistActive, setStylistPublic, setUsername, teamLogins } from '../../domain/staff.js';
+import { createStaff, deleteStaff, listStaff, setStylistActive, setStylistPublic, setUsername, setWorkHours, teamLogins } from '../../domain/staff.js';
 import { requireOwner, requireStaff, type AppEnv } from '../middleware.js';
 import {
   AbsenceSchema,
@@ -76,7 +76,7 @@ export function staffRoutes(deps: Deps) {
           z.object({
             appointments: z.array(AppointmentSchema),
             absences: z.array(AbsenceSchema),
-            stylists: z.array(z.object({ id: z.string(), displayName: z.string(), color: z.string() })),
+            stylists: z.array(z.object({ id: z.string(), displayName: z.string(), color: z.string(), workHours: z.any().nullable() })),
             counts: z.record(z.string(), z.number()),
             openRequests: z.number(),
             now: z.object({ date: LocalDate, minute: Minute }),
@@ -303,19 +303,21 @@ export function staffRoutes(deps: Deps) {
           stylistId: z.string().uuid(),
           from: z.object({ date: LocalDate, minute: Minute }),
           to: z.object({ date: LocalDate, minute: Minute }),
-          kind: z.enum(['vacation', 'sick', 'training', 'other']),
+          kind: z.enum(['vacation', 'sick', 'training', 'other', 'note']),
           note: z.string().max(500).optional(),
+          /** Notes only: true = the time is not bookable (D-072). */
+          blocks: z.boolean().optional(),
         }),
       ),
       responses: { 201: json(AbsenceSchema, 'Created'), ...errorResponses },
     }),
-    async (c) => c.json(await createAbsence(c.get('ctx'), c.req.valid('json'), c.get('user').id), 201),
+    async (c) => c.json(await createAbsence(c.get('ctx'), c.req.valid('json'), c.get('user').id, c.get('user').role), 201),
   );
 
   app.openapi(
     createRoute({ method: 'delete', path: '/absences/{id}', tags: ['staff'], summary: 'Delete an absence', request: { params: IdParam }, responses: { 204: { description: 'Deleted' }, ...errorResponses } }),
     async (c) => {
-      await deleteAbsence(c.get('ctx'), c.req.valid('param').id);
+      await deleteAbsence(c.get('ctx'), c.req.valid('param').id, c.get('user').role);
       return c.body(null, 204);
     },
   );
@@ -512,6 +514,21 @@ export function staffRoutes(deps: Deps) {
     async (c) => {
       const ctx = c.get('ctx');
       return c.json(await deleteStaff(ctx.db, { tenantId: ctx.tenantId, now: ctx.clock.now() }, c.req.valid('param').id, c.get('user').id), 200);
+    },
+  );
+  const WorkDay = z.object({ open: z.string(), close: z.string(), breaks: z.array(z.tuple([z.string(), z.string()])).max(4) });
+  app.openapi(
+    createRoute({
+      method: 'put',
+      path: '/admin/staff/{id}/work-hours',
+      tags: ['owner'],
+      summary: 'Personal working hours per weekday (null = day off, missing = salon hours); null body = salon hours (D-071)',
+      request: { params: IdParam, ...body(z.object({ workHours: z.partialRecord(z.enum(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']), WorkDay.nullable()).nullable() })) },
+      responses: { 200: json(z.object({ workHours: z.any().nullable() }), 'Saved'), ...errorResponses },
+    }),
+    async (c) => {
+      const ctx = c.get('ctx');
+      return c.json(await setWorkHours(ctx.db, ctx.tenantId, ctx.cfg, c.req.valid('param').id, c.req.valid('json').workHours as never), 200);
     },
   );
   app.post('/admin/staff/:id/active', async (c) => {

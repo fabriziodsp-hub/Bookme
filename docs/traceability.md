@@ -66,6 +66,8 @@ Test locations: `packages/engine/test` (unit + property, Vitest/fast-check), `ap
 | BR-17 / D-068 no unusable gaps (< 15′) next to client requests | engine `business-rules.test.ts` BR-17 (10′ after an appointment, 10′ before the break, staff unrestricted, off with 0); visual baseline `client-week` |
 | D-069 full-screen "Ganzer Tag" with one bar and side drawer | e2e `calendar-view.spec.ts` › … full screen covers the page, bar with Anfragen, drawer (Escape, axe), back to Klassisch; header-navigation tests start in Klassisch (`classicCalendar`) |
 | D-070 30′/5′ raster, 15′ labels, axis left and right | visual `staff-team` baselines; `staff.spec.ts` › Mein Tag (column count without the two corners) |
+| BR-18 / D-071 personal working hours, off duty not bookable; absences owner-only | engine `business-rules.test.ts` BR-18 (off duty, day off, slots, validation); API `hours-notes.test.ts` › personal working hours (slots, staff placement, 403/422); e2e `calendar-view.spec.ts` › column buttons… (dialog saves, axe) |
+| D-072 internal notes, blocking or not | API `hours-notes.test.ts` › internal calendar notes (non-blocking stays bookable, blocking not; stylist may not add/delete absences); e2e `calendar-view.spec.ts` › column buttons… (note shown, axe) |
 
 ## Staff UX (brief)
 

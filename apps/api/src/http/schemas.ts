@@ -183,8 +183,9 @@ export const AbsenceSchema = z
   .object({
     id: z.string(),
     stylistId: z.string(),
-    kind: z.enum(['vacation', 'sick', 'training', 'other']),
+    kind: z.enum(['vacation', 'sick', 'training', 'other', 'note']),
     note: z.string().nullable(),
+    blocks: z.boolean(),
     from: z.object({ date: LocalDate, minute: Minute }),
     to: z.object({ date: LocalDate, minute: Minute }),
     startAt: z.string(),
