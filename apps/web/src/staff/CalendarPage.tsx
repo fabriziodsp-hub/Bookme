@@ -10,6 +10,7 @@ import {
   checkPlacement,
   findService,
   formatHm,
+  offDuty,
   parseHm,
   resizePhase,
   shiftBlocks,
@@ -31,6 +32,7 @@ import { useLabels } from '../lib/labels';
 import { useLiveNow, useSalon } from '../lib/salon';
 import type { Absence, Appointment, StaffUser } from '../lib/types';
 import { AbsenceDialog } from './AbsenceDialog';
+import { NoteDialog, WorkHoursDialog } from './HoursNoteDialogs';
 import { AppointmentPanel } from './AppointmentPanel';
 import { useCalendar, useInvalidateCalendar, type CalendarData } from './hooks';
 import { NewAppointmentDialog } from './NewAppointmentDialog';
@@ -157,7 +159,8 @@ export function CalendarPage({ me }: { me: StaffUser }) {
     window.addEventListener('resize', measure);
     return () => (ro.disconnect(), window.removeEventListener('resize', measure));
   }, [full, mode, range]);
-  const HEAD = 49; // sticky column header
+  // sticky column header (measured: it grows with the name/avatar/buttons)
+  const HEAD = (wrapRef.current?.querySelector<HTMLElement>('.tg-head')?.offsetHeight ?? 48) + 1;
   // Phones keep "Klassisch": dragging by finger needs 9 px per 5′ (the switch is hidden there).
   const px = zoom === 'classic' || phone || !gridH ? PX_CLASSIC : Math.min(PX_CLASSIC, Math.max(FIT_MIN, (gridH - HEAD - 2) / (close - open)));
 
@@ -202,12 +205,17 @@ export function CalendarPage({ me }: { me: StaffUser }) {
     [data],
   );
 
+  const stylistById = useMemo(() => new Map((data?.stylists ?? []).map((s) => [s.id, s])), [data?.stylists]);
+  const owner = me.role === 'owner';
+  const [hoursFor, setHoursFor] = useState<string | null>(null); // stylist id: working hours dialog (owner)
+  const [noteFor, setNoteFor] = useState<{ stylistId: string; date: LocalDate } | null>(null);
+
   const occupancy = useCallback(
     (stylistId: string, d: LocalDate, exceptId: string): DayOccupancy => ({
       busy: appts.filter((a) => a.id !== exceptId && a.stylistId === stylistId && a.date === d).flatMap((a) => a.blocks.filter((b) => b.kind === 'busy')),
-      absences: absenceIntervals(stylistId, d),
+      absences: [...absenceIntervals(stylistId, d).filter((x) => x.a.blocks), ...offDuty(cfg, d, stylistById.get(stylistId)?.workHours)],
     }),
-    [appts, absenceIntervals],
+    [appts, absenceIntervals, cfg, stylistById],
   );
 
   const validate = useCallback(
@@ -425,7 +433,7 @@ export function CalendarPage({ me }: { me: StaffUser }) {
   const ticks = Array.from({ length: Math.ceil((close - open) / 15) }, (_, i) => open + i * 15);
   const colMin = mode === 'team' ? 150 : range === 'week' ? 110 : 220;
   // Time axis on both sides (owner 2026-11-13, D-070): left and right column.
-  const gridCols = `48px repeat(${columns.length}, minmax(${colMin}px, 1fr)) 48px`;
+  const gridCols = `48px repeat(${columns.length}, minmax(${colMin}px, 1fr))${phone ? '' : ' 48px'}`; // phones: one axis
 
   const renderAppt = (a: Appointment, col: Column) => {
     const isDragged = drag?.id === a.id;
@@ -526,7 +534,9 @@ export function CalendarPage({ me }: { me: StaffUser }) {
               <div className="drawer-row">
                 <button type="button" className="btn" disabled={!undoStack.length} onClick={() => runUndo('undo')} aria-label={`${t('staff.undo')}${undoStack.at(-1) ? `: ${undoStack.at(-1)!.label}` : ''}`}>↶ <span className="hide-s">{t('staff.undo')}</span></button>
                 <button type="button" className="btn" disabled={!redoStack.length} onClick={() => runUndo('redo')} aria-label={t('staff.redo')}>↷ <span className="hide-s">{t('staff.redo')}</span></button>
-                <button type="button" className="btn" onClick={() => (setDrawer(false), setDialog('absence'))}>{t('staff.newAbsence')}</button>
+                {owner && <button type="button" className="btn" onClick={() => (setDrawer(false), setDialog('absence'))}>{t('staff.newAbsence')}</button>}
+                <button type="button" className="btn" onClick={() => (setDrawer(false), setNoteFor({ stylistId: mineId ?? columns[0]?.stylistId ?? '', date }))}><span aria-hidden="true">📝 </span>{t('staff.cnote.kind')}</button>
+            <button type="button" className="btn" onClick={() => setNoteFor({ stylistId: mineId ?? columns[0]?.stylistId ?? '', date })}><span aria-hidden="true">📝 </span>{t('staff.cnote.kind')}</button>
               </div>
               <h3>{t('staff.cal.help')}</h3>
               <p className="small muted">{t('staff.help')}</p>
@@ -553,7 +563,7 @@ export function CalendarPage({ me }: { me: StaffUser }) {
             <span className="spacer" />
             <button type="button" className="btn" disabled={!undoStack.length} onClick={() => runUndo('undo')} aria-label={`${t('staff.undo')}${undoStack.at(-1) ? `: ${undoStack.at(-1)!.label}` : ''}`}>↶ <span className="hide-s">{t('staff.undo')}</span></button>
             <button type="button" className="btn" disabled={!redoStack.length} onClick={() => runUndo('redo')} aria-label={t('staff.redo')}>↷ <span className="hide-s">{t('staff.redo')}</span></button>
-            <button type="button" className="btn" onClick={() => (setDrawer(false), setDialog('absence'))}>{t('staff.newAbsence')}</button>
+            {owner && <button type="button" className="btn" onClick={() => (setDrawer(false), setDialog('absence'))}>{t('staff.newAbsence')}</button>}
             <details className="help">
               <summary className="btn ghost">Hilfe</summary>
               <p className="muted">{t('staff.help')}</p>
@@ -608,9 +618,16 @@ export function CalendarPage({ me }: { me: StaffUser }) {
                 <span className="name">{c.title}</span>
                 {c.sub && <><br /><span className="sub">{c.sub}</span></>}
               </span>
+              {/* D-071/D-072: working hours & absences (owner) and an internal note for this person */}
+              <span className="head-acts hide-m">
+                {owner && (
+                  <button type="button" className="icon-btn" aria-label={t('staff.wh.open', { name: stylistById.get(c.stylistId)?.displayName ?? c.title })} title={t('staff.wh.title')} onClick={() => setHoursFor(c.stylistId)}>🕒</button>
+                )}
+                <button type="button" className="icon-btn" aria-label={t('staff.cnote.open', { name: stylistById.get(c.stylistId)?.displayName ?? c.title })} title={t('staff.cnote.title')} onClick={() => setNoteFor({ stylistId: c.stylistId, date: c.date })}>📝</button>
+              </span>
             </div>
           ))}
-          <div className="tg-head corner corner-r" aria-hidden="true" />
+          {!phone && <div className="tg-head corner corner-r" aria-hidden="true" />}
           <div className="tg-axis" style={{ height, position: 'sticky' }} aria-hidden="true">
             {ticks.map((m) => (
               <span key={m} className={m % 60 === 0 ? 'hr' : 'qt'} style={{ top: (m - open) * px + (m === open ? 8 : 0) }}>{formatHm(m)}</span>
@@ -647,12 +664,26 @@ export function CalendarPage({ me }: { me: StaffUser }) {
                     ))}
                   </>
                 )}
-                {absenceIntervals(c.stylistId, c.date).map((ab) => (
-                  <button key={ab.a.id} type="button" className="abs" style={{ top: (Math.max(ab.start, open) - open) * px, height: (Math.min(ab.end, close) - Math.max(ab.start, open)) * px }} onClick={() => setAbsenceSel(ab.a)}>
-                    {t(`absenceKind.${ab.a.kind}`)}
-                    {ab.a.note ? ` – ${ab.a.note}` : ''}
-                  </button>
+                {h && offDuty(cfg, c.date, stylistById.get(c.stylistId)?.workHours).map((o, i) => (
+                  <div key={`od${i}`} className="tg-off duty" style={{ top: (o.start - open) * px, height: (o.end - o.start) * px }}>{t('staff.wh.off')}</div>
                 ))}
+                {absenceIntervals(c.stylistId, c.date).map((ab) => {
+                  const top = (Math.max(ab.start, open) - open) * px;
+                  const hgt = Math.max(24, (Math.min(ab.end, close) - Math.max(ab.start, open)) * px);
+                  return ab.a.kind === 'note' ? (
+                    // Internal note (D-072): blocking = full width; non-blocking = a slim tag that leaves room to the appointments
+                    <button key={ab.a.id} type="button" className={`note-blk ${ab.a.blocks ? 'blocking' : 'free'}`} style={{ top, height: hgt }} onClick={() => setAbsenceSel(ab.a)}>
+                      <span aria-hidden="true">📝 </span>
+                      <span className="sr-only">{t('staff.cnote.kind')}{ab.a.blocks ? ` (${t('staff.cnote.blocks')})` : ''}: </span>
+                      {ab.a.note}
+                    </button>
+                  ) : (
+                    <button key={ab.a.id} type="button" className="abs" style={{ top, height: hgt }} onClick={() => setAbsenceSel(ab.a)}>
+                      {t(`absenceKind.${ab.a.kind}`)}
+                      {ab.a.note ? ` – ${ab.a.note}` : ''}
+                    </button>
+                  );
+                })}
                 {list.map((a) => renderAppt(a, c))}
                 {ghost &&
                   ghost.blocks!.map((b, i) => (
@@ -664,11 +695,13 @@ export function CalendarPage({ me }: { me: StaffUser }) {
               </div>
             );
           })}
-          <div className="tg-axis tg-axis-r" style={{ height, position: 'sticky' }} aria-hidden="true">
-            {ticks.map((m) => (
-              <span key={m} className={m % 60 === 0 ? 'hr' : 'qt'} style={{ top: (m - open) * px + (m === open ? 8 : 0) }}>{formatHm(m)}</span>
-            ))}
-                      </div>
+          {!phone && (
+            <div className="tg-axis tg-axis-r" style={{ height, position: 'sticky' }} aria-hidden="true">
+              {ticks.map((m) => (
+                <span key={m} className={m % 60 === 0 ? 'hr' : 'qt'} style={{ top: (m - open) * px + (m === open ? 8 : 0) }}>{formatHm(m)}</span>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -693,11 +726,21 @@ export function CalendarPage({ me }: { me: StaffUser }) {
           onCreated={(a) => (invalidate(), setDate(a.date), setSelected(a.id))}
         />
       )}
+      {hoursFor && stylistById.get(hoursFor) && (
+        <WorkHoursDialog
+          stylist={stylistById.get(hoursFor)!}
+          date={date}
+          onClose={() => setHoursFor(null)}
+          onDone={() => (invalidate(), setHoursFor(null))}
+        />
+      )}
+      {noteFor && <NoteDialog stylistId={noteFor.stylistId} date={noteFor.date} onClose={() => setNoteFor(null)} onDone={() => (invalidate(), setNoteFor(null))} />}
       {(dialog === 'absence' || absenceSel) && (
         <AbsenceDialog
           date={date}
           stylistId={mineId ?? columns[0]?.stylistId ?? ''}
           existing={absenceSel}
+          canDelete={owner}
           onClose={() => (setDialog(null), setAbsenceSel(null))}
           onDone={() => (invalidate(), setDialog(null), setAbsenceSel(null))}
         />

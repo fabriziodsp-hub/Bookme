@@ -12,8 +12,11 @@ import {
   EMPTY_DAY,
   findService,
   formatHm,
+  offDuty,
   offeredServices,
   totalMinutes,
+  workHoursProblems,
+  type WorkHours,
   type DayOccupancy,
   type Selection,
 } from '../src/index.js';
@@ -255,5 +258,29 @@ describe('BR-17 no unusable gaps for client requests (D-068)', () => {
 
   it('can be switched off (0)', () => {
     expect(place('client', 690, { ...cfg, minClientGapMinutes: 0 })).toEqual([]);
+  });
+});
+
+describe('BR-18 personal working hours (D-071)', () => {
+  const TUE = '2026-11-03'; // salon 08:00–17:00, break 12:00–13:00
+  const work: WorkHours = { tue: { open: '09:00', close: '15:00', breaks: [] }, wed: null };
+  it('time outside the personal hours is off duty; a day off blocks the whole salon day', () => {
+    expect(offDuty(cfg, TUE, work)).toEqual([{ start: 480, end: 540 }, { start: 900, end: 1020 }]);
+    expect(offDuty(cfg, '2026-11-04', work)).toEqual([{ start: 480, end: 1020 }]);
+    expect(offDuty(cfg, '2026-11-05', work)).toEqual([]); // Thursday not set → salon hours
+    expect(offDuty(cfg, TUE, null)).toEqual([]);
+  });
+  it('off duty counts like an absence: no client slots there', () => {
+    const occ: DayOccupancy = { busy: [], absences: offDuty(cfg, TUE, work) };
+    const s = starts(TUE, sel('cut', { variant: 'dry' }), occ);
+    expect(s[0]).toBe('09:00');
+    expect(s).not.toContain('14:45'); // would end 15:15
+    expect(s.at(-1)).toBe('14:30');
+  });
+  it('plans must stay inside the opening hours', () => {
+    expect(workHoursProblems(cfg, work)).toEqual([]);
+    expect(workHoursProblems(cfg, { tue: { open: '07:00', close: '15:00', breaks: [] } })[0]).toMatch(/Öffnungszeiten/);
+    expect(workHoursProblems(cfg, { sun: { open: '09:00', close: '12:00', breaks: [] } })[0]).toMatch(/geschlossen/);
+    expect(workHoursProblems(cfg, { tue: { open: '10:00', close: '09:00', breaks: [] } })[0]).toMatch(/vor dem Ende/);
   });
 });

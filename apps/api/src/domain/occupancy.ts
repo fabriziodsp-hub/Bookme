@@ -2,12 +2,14 @@
 import {
   addDays,
   fromInstant,
+  offDuty,
   toInstant,
   type Block,
   type DayOccupancy,
   type Interval,
   type LocalDate,
   type SalonConfig,
+  type WorkHours,
 } from '@salon/engine';
 import type { Queryable } from '../db/pool.js';
 
@@ -101,6 +103,17 @@ export async function loadOccupancy(
       }
       if (d >= last) break;
       d = addDays(d, 1);
+    }
+  }
+  // D-071: personal working hours – time outside them counts as absence (also for staff placement).
+  const { rows: wh } = await q.query<{ id: string; work_hours: WorkHours | null }>(
+    'SELECT id, work_hours FROM stylist WHERE tenant_id = $1 AND id = ANY($2::uuid[]) AND work_hours IS NOT NULL',
+    [ctx.tenantId, stylistIds],
+  );
+  for (const w of wh) {
+    for (const [d, m] of out) {
+      const occ = m.get(w.id);
+      if (occ) (occ.absences as Interval[]).push(...offDuty(cfg, d, w.work_hours));
     }
   }
   return out;

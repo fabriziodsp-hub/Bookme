@@ -1,6 +1,7 @@
 /** Stylists and staff accounts of a salon. */
 import { hashPassword, validatePassword } from '../auth/auth.js';
 import { withTx, PG, pgCode, type Queryable } from '../db/pool.js';
+import { workHoursProblems, type SalonConfig, type WorkHours } from '@salon/engine';
 import { AppError, Errors } from './errors.js';
 
 export async function listStaff(q: Queryable, tenantId: string) {
@@ -182,4 +183,15 @@ export async function teamLogins(q: Queryable, tenantId: string) {
     [tenantId],
   );
   return rows.map((r) => ({ id: r.id, displayName: r.display_name, username: r.username }));
+}
+
+/** Owner: personal working hours of a person (D-071); null = the salon's opening hours. */
+export async function setWorkHours(q: Queryable, tenantId: string, cfg: SalonConfig, stylistId: string, work: WorkHours | null): Promise<{ workHours: WorkHours | null }> {
+  if (work) {
+    const problems = workHoursProblems(cfg, work);
+    if (problems.length) throw new AppError('WORK_HOURS_INVALID', 422, problems.join(' '), { problems });
+  }
+  const r = await q.query('UPDATE stylist SET work_hours = $3 WHERE tenant_id = $1 AND id = $2 AND deleted_at IS NULL', [tenantId, stylistId, work ? JSON.stringify(work) : null]);
+  if (!r.rowCount) throw Errors.notFound();
+  return { workHours: work };
 }

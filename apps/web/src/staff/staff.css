@@ -46,7 +46,7 @@
 /* time grid */
 .tg-wrap { border: 1px solid var(--border); border-radius: var(--radius-s); background: var(--surface); overflow: auto; height: calc(100dvh - 250px); min-height: 360px; position: relative; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; scroll-snap-type: x proximity; }
 .tg { display: grid; position: relative; }
-.tg-head { position: sticky; top: 0; z-index: 8; background: var(--surface); border-bottom: 1px solid var(--border); padding: 6px 6px; display: flex; align-items: center; gap: 8px; min-height: 48px; scroll-snap-align: start; }
+.tg-head { position: sticky; top: 0; z-index: 8; background: var(--surface); border-bottom: 1px solid var(--border); padding: 2px 6px; display: flex; align-items: center; gap: 8px; min-height: 48px; scroll-snap-align: start; }
 .tg-head.corner { position: sticky; left: 0; z-index: 9; }
 .tg-head .avatar { flex: none; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-size: 0.75rem; font-weight: 700; color: #0b0b0c; }
 .tg-head .name { font-weight: 650; font-size: 0.9rem; line-height: 1.15; overflow-wrap: anywhere; }
@@ -247,3 +247,19 @@ main.cal-full .cal-bar .date { flex: 1 1 auto; min-width: 0; }
 .tg-head.corner-r { left: auto; right: 0; }
 .tg-axis.tg-axis-r { left: auto; right: 0; border-right: 0; border-left: 1px solid var(--border); }
 .tg-axis.tg-axis-r span { right: auto; left: 6px; }
+
+/* Column header actions (D-071/D-072) */
+.tg-head .head-acts { margin-left: auto; display: flex; gap: 2px; flex: none; }
+.icon-btn { min-width: 44px; min-height: 44px; border-radius: 10px; border: 1px solid transparent; background: transparent; cursor: pointer; font-size: 1.05rem; line-height: 1; }
+.icon-btn:focus-visible { outline: 3px solid var(--ac); }
+@media (hover: hover) and (pointer: fine) { .icon-btn:hover { border-color: var(--ac); box-shadow: inset 0 0 10px color-mix(in srgb, var(--ac) 40%, transparent); } }
+/* off duty (personal hours) – like closed time, hatched lightly */
+.tg-off.duty { background: repeating-linear-gradient(135deg, var(--surface2) 0 8px, color-mix(in srgb, var(--surface2) 60%, var(--surface)) 8px 16px); font-size: 0.7rem; }
+/* internal notes in the calendar (D-072) */
+.note-blk {
+  position: absolute; z-index: 4; border-radius: 8px; padding: 2px 8px; text-align: left; cursor: pointer;
+  font-size: 0.75rem; line-height: 1.25; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  background: color-mix(in srgb, var(--free) 85%, var(--surface)); color: var(--free-ink); border: 1px dashed var(--free-ink);
+}
+.note-blk.blocking { left: 3px; right: 3px; z-index: 2; }
+.note-blk.free { right: 44px; max-width: 55%; min-width: 120px; box-shadow: var(--shadow); }
